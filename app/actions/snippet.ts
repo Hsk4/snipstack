@@ -5,7 +5,7 @@ import { revalidatePath } from 'next/cache';
 import crypto from 'crypto';
 import type { RowDataPacket } from 'mysql2';
 import pool, { initDb } from '@/lib/db';
-import { Snippet } from '@/types';
+import { Snippet } from '@/app/types';
 
 // MySQL row interface extending RowDataPacket for strict typing
 interface SnippetRow extends RowDataPacket {
