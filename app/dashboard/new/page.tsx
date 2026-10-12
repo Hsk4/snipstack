@@ -44,6 +44,10 @@ export default function NewSnippetPage(): JSX.Element {
       return;
     }
 
+    const pendingTag = tagInput.trim().toLowerCase();
+    const tagsToSave =
+      pendingTag && !tags.includes(pendingTag) ? [...tags, pendingTag] : tags;
+
     startTransition(async () => {
       try {
         await createSnippet({
@@ -51,7 +55,7 @@ export default function NewSnippetPage(): JSX.Element {
           description: description.trim() || undefined,
           code,
           language,
-          tags,
+          tags: tagsToSave,
           isPublic,
         });
         router.push('/dashboard');
@@ -83,8 +87,11 @@ export default function NewSnippetPage(): JSX.Element {
 
       <form onSubmit={handleSubmit} className="space-y-6">
         <div className="space-y-2">
-          <label className="text-sm font-medium leading-none">Title</label>
+          <label htmlFor="snippet-title" className="text-sm font-medium leading-none">
+            Title
+          </label>
           <Input
+            id="snippet-title"
             type="text"
             placeholder="e.g., JWT Authentication Middleware"
             value={title}
@@ -94,8 +101,11 @@ export default function NewSnippetPage(): JSX.Element {
         </div>
 
         <div className="space-y-2">
-          <label className="text-sm font-medium leading-none">Description (Optional)</label>
+          <label htmlFor="snippet-description" className="text-sm font-medium leading-none">
+            Description (Optional)
+          </label>
           <Textarea
+            id="snippet-description"
             placeholder="Brief explanation of how this snippet works..."
             value={description}
             onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setDescription(e.target.value)}
@@ -104,8 +114,11 @@ export default function NewSnippetPage(): JSX.Element {
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div className="space-y-2">
-            <label className="text-sm font-medium leading-none">Language</label>
+            <label htmlFor="snippet-language" className="text-sm font-medium leading-none">
+              Language
+            </label>
             <select
+              id="snippet-language"
               value={language}
               onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setLanguage(e.target.value)}
               className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
@@ -135,8 +148,11 @@ export default function NewSnippetPage(): JSX.Element {
         </div>
 
         <div className="space-y-2">
-          <label className="text-sm font-medium leading-none">Tags (Press Enter or comma to add)</label>
+          <label htmlFor="snippet-tags" className="text-sm font-medium leading-none">
+            Tags (Press Enter or comma to add)
+          </label>
           <Input
+            id="snippet-tags"
             type="text"
             placeholder="e.g., auth, security, jwt"
             value={tagInput}
@@ -165,8 +181,11 @@ export default function NewSnippetPage(): JSX.Element {
         </div>
 
         <div className="space-y-2">
-          <label className="text-sm font-medium leading-none">Code Content</label>
+          <label htmlFor="snippet-code" className="text-sm font-medium leading-none">
+            Code Content
+          </label>
           <Textarea
+            id="snippet-code"
             placeholder="Paste your code here..."
             rows={10}
             value={code}

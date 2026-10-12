@@ -1,4 +1,4 @@
-import mysql from 'mysql2/promise';
+import mysql, { type RowDataPacket } from 'mysql2/promise';
 import fs from 'fs';
 import path from 'path';
 import { connection as requestConnection } from 'next/server';
@@ -35,7 +35,14 @@ async function ensureDatabaseExists() {
 
   const bootstrap = await mysql.createConnection({ host, port, user, password });
   try {
-    await bootstrap.query(`CREATE DATABASE IF NOT EXISTS \`${dbName}\``);
+    const [rows] = await bootstrap.query<RowDataPacket[]>(
+      'SELECT COUNT(*) AS cnt FROM information_schema.SCHEMATA WHERE SCHEMA_NAME = ?',
+      [dbName]
+    );
+    const exists = Number(rows[0]?.cnt) > 0;
+    if (!exists) {
+      await bootstrap.query(`CREATE DATABASE \`${dbName}\``);
+    }
   } finally {
     await bootstrap.end();
   }
