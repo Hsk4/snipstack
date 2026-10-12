@@ -3,18 +3,33 @@
 import { auth } from '@clerk/nextjs/server';
 import { revalidatePath } from 'next/cache';
 import crypto from 'crypto';
+import type { RowDataPacket } from 'mysql2';
 import pool, { initDb } from '@/lib/db';
-import { Snippet } from '../types';
+import { Snippet } from '@/types';
+
+// MySQL row interface extending RowDataPacket for strict typing
+interface SnippetRow extends RowDataPacket {
+  id: string;
+  userId: string;
+  title: string;
+  description: string | null;
+  code: string;
+  language: string;
+  tags: string | null;
+  isPublic: boolean | number;
+  createdAt: Date | string;
+  updatedAt: Date | string;
+}
 
 // Utility to map raw DB row to Snippet interface
-function mapRowToSnippet(row: any): Snippet {
+function mapRowToSnippet(row: SnippetRow): Snippet {
   return {
     id: row.id,
     userId: row.userId,
     title: row.title,
-    description: row.description,
+    description: row.description || undefined,
     code: row.code,
-    language: row.language,
+    language: row.language as Snippet['language'],
     tags: row.tags ? row.tags.split(',') : [],
     isPublic: Boolean(row.isPublic),
     createdAt: new Date(row.createdAt),
@@ -71,8 +86,8 @@ export async function getUserSnippets(): Promise<Snippet[]> {
     ORDER BY createdAt DESC
   `;
 
-  const [rows] = await pool.execute(query, [userId]);
-  return (rows as any[]).map(mapRowToSnippet);
+  const [rows] = await pool.execute<SnippetRow[]>(query, [userId]);
+  return rows.map(mapRowToSnippet);
 }
 
 // 3. READ Single Snippet
@@ -81,8 +96,8 @@ export async function getSnippetById(id: string): Promise<Snippet | null> {
   const { userId } = await auth();
 
   const query = `SELECT * FROM snippets WHERE id = ?`;
-  const [rows] = await pool.execute(query, [id]);
-  const snippet = (rows as any[])[0];
+  const [rows] = await pool.execute<SnippetRow[]>(query, [id]);
+  const snippet = rows[0];
 
   if (!snippet) return null;
 
