@@ -1,8 +1,9 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import type { Snippet } from '@/app/types';
 import { deleteSnippet } from '@/app/actions/snippet';
+import { highlightCode } from '@/lib/higlight';
 
 interface SnippetCardProps {
   snippet: Snippet;
@@ -11,6 +12,27 @@ interface SnippetCardProps {
 export function SnippetCard({ snippet }: SnippetCardProps) {
   const [copied, setCopied] = useState<boolean>(false);
   const [isDeleting, setIsDeleting] = useState<boolean>(false);
+
+
+  // added in syntax highligthing branch
+  useEffect(() => {
+    highlightCode();
+  })
+
+
+  // Map common language aliases for Prism
+  const prismLanguageMap: Record<string, string> = {
+    typescript: 'language-typescript',
+    javascript: 'language-javascript',
+    python: 'language-python',
+    sql: 'language-sql',
+    bash: 'language-bash',
+    json: 'language-json',
+    html: 'language-html',
+    css: 'language-css',
+  };
+
+   const langClass = prismLanguageMap[snippet.language.toLowerCase()] || 'language-typescript';
 
   const handleCopy = async (): Promise<void> => {
     await navigator.clipboard.writeText(snippet.code);
