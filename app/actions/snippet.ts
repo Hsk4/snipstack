@@ -134,12 +134,14 @@ export async function getPublicSnippets(): Promise<Snippet[]> {
       description: row.description,
       code: row.code,
       language: row.language,
-      tags: typeof row.tags === "string" ? JSON.parse(row.tags) : row.tags,
+      // Fix inside getPublicSnippets array parsing:
+      tags: row.tags ? row.tags.split(",") : [],
+
       isPublic: Boolean(row.isPublic),
       createdAt: row.createdAt,
       updatedAt: row.updatedAt,
     }));
-  } catch (error:unknown) {
+  } catch (error: unknown) {
     console.error("Failed to fetch public snippets:", error);
     return [];
   }
