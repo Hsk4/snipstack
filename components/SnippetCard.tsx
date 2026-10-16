@@ -1,9 +1,18 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
+import Prism from "prismjs";
+import "prismjs/components/prism-javascript";
+import "prismjs/components/prism-typescript";
+import "prismjs/components/prism-python";
+import "prismjs/components/prism-sql";
+import "prismjs/components/prism-bash";
+import "prismjs/components/prism-json";
+import "prismjs/themes/prism-okaidia.css";
+
 import type { Snippet } from "@/app/types";
 import { deleteSnippet } from "@/app/actions/snippet";
-import { highlightCode } from "@/lib/higlight";
+
 interface SnippetCardProps {
   snippet: Snippet;
 }
@@ -11,10 +20,14 @@ interface SnippetCardProps {
 export function SnippetCard({ snippet }: SnippetCardProps) {
   const [copied, setCopied] = useState<boolean>(false);
   const [isDeleting, setIsDeleting] = useState<boolean>(false);
+  const codeRef = useRef<HTMLElement | null>(null);
 
+  // Target this specific element directly instead of a global document sweep
   useEffect(() => {
-    highlightCode();
-  }, [snippet.code]);
+    if (codeRef.current) {
+      Prism.highlightElement(codeRef.current);
+    }
+  }, [snippet.code, snippet.language]);
 
   const handleCopy = async (): Promise<void> => {
     await navigator.clipboard.writeText(snippet.code);
@@ -33,20 +46,7 @@ export function SnippetCard({ snippet }: SnippetCardProps) {
     }
   };
 
-  // Map common language aliases for Prism
-  const prismLanguageMap: Record<string, string> = {
-    typescript: "language-typescript",
-    javascript: "language-javascript",
-    python: "language-python",
-    sql: "language-sql",
-    bash: "language-bash",
-    json: "language-json",
-    html: "language-html",
-    css: "language-css",
-  };
-
-  const langClass =
-    prismLanguageMap[snippet.language.toLowerCase()] || "language-typescript";
+  const langClass = `language-${snippet.language.toLowerCase()}`;
 
   return (
     <div className="rounded-xl border border-border bg-card p-6 shadow-sm space-y-4">
@@ -64,6 +64,7 @@ export function SnippetCard({ snippet }: SnippetCardProps) {
         </span>
       </div>
 
+      {/* Code Container */}
       <div className="relative rounded-lg bg-[#272822] p-4 font-mono text-sm overflow-x-auto">
         <button
           onClick={handleCopy}
@@ -71,8 +72,10 @@ export function SnippetCard({ snippet }: SnippetCardProps) {
         >
           {copied ? "Copied!" : "Copy"}
         </button>
-        <pre>
-          <code>{snippet.code}</code>
+        <pre className="bg-transparent! m-0! p-0!">
+          <code ref={codeRef} className={`${langClass} text-zinc-50`}>
+            {snippet.code}
+          </code>
         </pre>
       </div>
 
