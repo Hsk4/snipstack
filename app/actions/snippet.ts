@@ -1,11 +1,11 @@
-'use server';
+"use server";
 
-import { auth } from '@clerk/nextjs/server';
-import { revalidatePath } from 'next/cache';
-import crypto from 'crypto';
-import type { RowDataPacket } from 'mysql2';
-import pool, { initDb } from '@/lib/db';
-import { Snippet } from '@/app/types';
+import { auth } from "@clerk/nextjs/server";
+import { revalidatePath } from "next/cache";
+import crypto from "crypto";
+import type { RowDataPacket } from "mysql2";
+import pool, { initDb } from "@/lib/db";
+import { Snippet } from "@/app/types";
 
 // MySQL row interface extending RowDataPacket for strict typing
 interface SnippetRow extends RowDataPacket {
@@ -29,8 +29,8 @@ function mapRowToSnippet(row: SnippetRow): Snippet {
     title: row.title,
     description: row.description || undefined,
     code: row.code,
-    language: row.language as Snippet['language'],
-    tags: row.tags ? row.tags.split(',') : [],
+    language: row.language as Snippet["language"],
+    tags: row.tags ? row.tags.split(",") : [],
     isPublic: Boolean(row.isPublic),
     createdAt: new Date(row.createdAt),
     updatedAt: new Date(row.updatedAt),
@@ -48,10 +48,10 @@ export async function createSnippet(data: {
 }) {
   await initDb();
   const { userId } = await auth();
-  if (!userId) throw new Error('Unauthorized');
+  if (!userId) throw new Error("Unauthorized");
 
   const id = crypto.randomUUID();
-  const tagsString = data.tags.join(',');
+  const tagsString = data.tags.join(",");
   const isPublic = data.isPublic ?? false;
 
   const query = `
@@ -70,7 +70,7 @@ export async function createSnippet(data: {
     isPublic,
   ]);
 
-  revalidatePath('/dashboard');
+  revalidatePath("/dashboard");
   return { success: true, snippetId: id };
 }
 
@@ -78,7 +78,7 @@ export async function createSnippet(data: {
 export async function getUserSnippets(): Promise<Snippet[]> {
   await initDb();
   const { userId } = await auth();
-  if (!userId) throw new Error('Unauthorized');
+  if (!userId) throw new Error("Unauthorized");
 
   const query = `
     SELECT * FROM snippets 
@@ -103,7 +103,7 @@ export async function getSnippetById(id: string): Promise<Snippet | null> {
 
   // Authorization check for private snippets
   if (!snippet.isPublic && snippet.userId !== userId) {
-    throw new Error('Forbidden');
+    throw new Error("Forbidden");
   }
 
   return mapRowToSnippet(snippet);
@@ -113,11 +113,34 @@ export async function getSnippetById(id: string): Promise<Snippet | null> {
 export async function deleteSnippet(id: string) {
   await initDb();
   const { userId } = await auth();
-  if (!userId) throw new Error('Unauthorized');
+  if (!userId) throw new Error("Unauthorized");
 
   const query = `DELETE FROM snippets WHERE id = ? AND userId = ?`;
   await pool.execute(query, [id, userId]);
 
-  revalidatePath('/dashboard');
+  revalidatePath("/dashboard");
   return { success: true };
+}
+
+export async function getPublicSnippets(): Promise<Snippet[]> {
+  try {
+    const [rows] = await pool.execute<RowDataPacket[]>(
+      "SELECT id, userId, title, description, code, language, tags, isPublic, createdAt FROM snippets WHERE isPublic = true ORDER BY createdAt DESC",
+    );
+    return rows.map((row) => ({
+      id: row.id,
+      userId: row.userId,
+      title: row.title,
+      description: row.description,
+      code: row.code,
+      language: row.language,
+      tags: typeof row.tags === "string" ? JSON.parse(row.tags) : row.tags,
+      isPublic: Boolean(row.isPublic),
+      createdAt: row.createdAt,
+      updatedAt: row.updatedAt,
+    }));
+  } catch (error:unknown) {
+    console.error("Failed to fetch public snippets:", error);
+    return [];
+  }
 }
