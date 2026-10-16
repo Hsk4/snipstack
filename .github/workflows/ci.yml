@@ -2,13 +2,24 @@ name: SnippetVault CI
 
 on:
   push:
-    branches: [ main, feature/* ]
+    branches: [ main, "feature/*" ]
   pull_request:
     branches: [ main ]
 
 jobs:
   build-and-test:
     runs-on: ubuntu-latest
+
+    # 💡 Add a local MySQL container service inside the test runner
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: root_password
+          MYSQL_DATABASE: snippet_vault
+        ports:
+          - 3306:3306
+        options: --health-cmd="mysqladmin ping" --health-interval=10s --health-timeout=5s --health-retries=3
 
     steps:
       - name: Checkout Repository
@@ -25,8 +36,17 @@ jobs:
       - name: Run Linter
         run: bun run lint
 
+      # 💡 (Optional) Run your DB seed/migration script here if you have one:
+      # - name: Push Schema
+      #   run: bun run db:migrate 
+
       - name: Build Project
         run: bun run build
         env:
           NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: ${{ secrets.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY }}
           CLERK_SECRET_KEY: ${{ secrets.CLERK_SECRET_KEY }}
+          # 💡 Provide the connection credentials pointing to the local runner service
+          DATABASE_HOST: 127.0.0.1
+          DATABASE_USER: root
+          DATABASE_PASSWORD: root_password
+          DATABASE_NAME: snippet_vault
