@@ -9,16 +9,23 @@ import { buttonVariants } from "@/components/ui/button";
 export type Collection = { name: string; count: number };
 
 interface DashboardSidebarProps {
+  /** Which top-level page is showing; drives the highlighted nav item. */
+  active: "library" | "playground";
   workspaceName: string;
   collections: Collection[];
-  activeCollection: string | null;
-  onSelectCollection: (name: string | null) => void;
-  /** True when no collection is selected, i.e. "All snippets" is the active view. */
-  allActive: boolean;
+  /**
+   * Library page only: filter in place. When omitted (e.g. on the playground),
+   * "All snippets" and the collections link back to /dashboard instead.
+   */
+  activeCollection?: string | null;
+  onSelectCollection?: (name: string | null) => void;
 }
 
 const itemBase =
   "flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-left text-[13px] transition-colors";
+const itemActive = "bg-secondary font-medium text-foreground";
+const itemIdle =
+  "text-muted-foreground hover:bg-secondary/60 hover:text-foreground";
 
 function SectionLabel({ children }: { children: React.ReactNode }) {
   return (
@@ -28,13 +35,53 @@ function SectionLabel({ children }: { children: React.ReactNode }) {
   );
 }
 
+/** Renders a Link when given an href, otherwise a button. */
+function NavItem({
+  active,
+  href,
+  onClick,
+  className = "",
+  children,
+}: {
+  active: boolean;
+  href?: string;
+  onClick?: () => void;
+  className?: string;
+  children: React.ReactNode;
+}) {
+  const classes = `${itemBase} ${active ? itemActive : itemIdle} ${className}`;
+  if (href) {
+    return (
+      <Link
+        href={href}
+        aria-current={active ? "page" : undefined}
+        className={classes}
+      >
+        {children}
+      </Link>
+    );
+  }
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-current={active ? "page" : undefined}
+      className={classes}
+    >
+      {children}
+    </button>
+  );
+}
+
 export function DashboardSidebar({
+  active,
   workspaceName,
   collections,
-  activeCollection,
+  activeCollection = null,
   onSelectCollection,
-  allActive,
 }: DashboardSidebarProps) {
+  const inPlace = Boolean(onSelectCollection);
+
   return (
     <aside className="hidden w-64 shrink-0 flex-col gap-5 overflow-y-auto border-r border-sidebar-border bg-sidebar p-4 md:flex">
       <Link
@@ -51,26 +98,18 @@ export function DashboardSidebar({
 
       <nav className="space-y-1.5" aria-label="Workspace">
         <SectionLabel>Workspace</SectionLabel>
-        <button
-          type="button"
-          onClick={() => onSelectCollection(null)}
-          aria-current={allActive ? "page" : undefined}
-          className={`${itemBase} ${
-            allActive
-              ? "bg-secondary font-medium text-foreground"
-              : "text-muted-foreground hover:bg-secondary/60 hover:text-foreground"
-          }`}
+        <NavItem
+          active={active === "library" && activeCollection === null}
+          href={inPlace ? undefined : "/dashboard"}
+          onClick={() => onSelectCollection?.(null)}
         >
           <Layers className="size-4" />
           All snippets
-        </button>
-        <Link
-          href="/playground"
-          className={`${itemBase} text-muted-foreground hover:bg-secondary/60 hover:text-foreground`}
-        >
+        </NavItem>
+        <NavItem active={active === "playground"} href="/playground">
           <SquareTerminal className="size-4" />
           Playground
-        </Link>
+        </NavItem>
         {/* Favorites / recents need data the snippets table doesn't track yet. */}
         <button
           type="button"
@@ -100,18 +139,16 @@ export function DashboardSidebar({
           </p>
         ) : (
           collections.map((collection) => {
-            const active = activeCollection === collection.name;
+            const selected = activeCollection === collection.name;
             return (
-              <button
+              <NavItem
                 key={collection.name}
-                type="button"
-                onClick={() => onSelectCollection(active ? null : collection.name)}
-                aria-pressed={active}
-                className={`${itemBase} justify-between ${
-                  active
-                    ? "bg-secondary text-foreground"
-                    : "text-muted-foreground hover:bg-secondary/60 hover:text-foreground"
-                }`}
+                active={selected}
+                href={inPlace ? undefined : "/dashboard"}
+                onClick={() =>
+                  onSelectCollection?.(selected ? null : collection.name)
+                }
+                className="justify-between"
               >
                 <span className="flex min-w-0 items-center gap-2.5">
                   <Folder className="size-4 shrink-0" />
@@ -120,7 +157,7 @@ export function DashboardSidebar({
                 <span className="text-xs tabular-nums">
                   {String(collection.count).padStart(2, "0")}
                 </span>
-              </button>
+              </NavItem>
             );
           })
         )}
@@ -128,16 +165,16 @@ export function DashboardSidebar({
 
       <div className="mt-auto space-y-3">
         <div className="rounded-xl border border-border bg-card p-4">
-          <Sparkles className="mb-2 size-4 text-primary" />
-          <p className="text-[13px] font-semibold">Small snippets. Big ideas.</p>
-          <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
-            Your next good idea starts with a little practice.
-          </p>
-          <Link
-            href="/playground"
-            className={`${buttonVariants({ size: "lg" })} mt-3 w-full`}
-          >
-            Open playground
+            <Sparkles className="mb-2 size-4 text-primary" />
+            <p className="text-[13px] font-semibold">Small snippets. Big ideas.</p>
+            <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
+              Your next good idea starts with a little practice.
+            </p>
+            <Link
+              href="/playground"
+              className={`${buttonVariants({ size: "lg" })} mt-3 w-full`}
+            >
+              Open playground
           </Link>
         </div>
 

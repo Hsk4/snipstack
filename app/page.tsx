@@ -1,69 +1,147 @@
-import Image from "next/image";
+import Link from "next/link";
+import HeroScene from "@/components/HeroScene";
+
+const steps = [
+  {
+    n: "01",
+    title: "Capture it in a click",
+    text: "Save a snippet the moment you write it, with its language, tags and notes.",
+    code: "snippet.save(code)",
+  },
+  {
+    n: "02",
+    title: "Find it fast",
+    text: "Search and filter across everything you've kept, so nothing gets buried.",
+    code: "search('debounce')",
+  },
+  {
+    n: "03",
+    title: "Reuse it anywhere",
+    text: "Copy it into any project, or open it in the playground and keep building.",
+    code: "npx snip use hook",
+  },
+];
 
 export default function Home() {
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert h-5 w-25"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the{" "}
-            <code className="rounded bg-black/6 px-1.5 py-0.5 font-mono text-[0.9em] dark:bg-white/8">
-              page.tsx
-            </code>{" "}
-            file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
-        </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-39.5"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert h-3.5 w-4"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={14}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/8 px-5 transition-colors hover:border-transparent hover:bg-black/4 dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-39.5"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
-        </div>
+      <main>
+        {/* HERO */}
+        <section className="ss-hero">
+          <div className="ss-copy">
+            <span className="ss-badge">YOUR NEXT GOOD IDEA, SAVED.</span>
+            <h1>
+              Keep the code.
+              <br />
+              Build the idea.
+            </h1>
+            <p>
+              A little space for the snippets you reach for, the experiments you
+              get lost in, and everything you&apos;ll build next.
+            </p>
+            <div className="ss-cta">
+              <Link href="/workspace" className="ss-btn ss-btn-lime">Open your workspace</Link>
+              <Link href="/playground" className="ss-btn ss-btn-ghost">Try the playground</Link>
+            </div>
+            <small className="ss-muted">Less searching. More shipping.</small>
+          </div>
+
+          <div className="ss-visual">
+            <div className="ss-canvas" aria-hidden>
+              <HeroScene />
+            </div>
+            <div className="ss-cards">
+              <div className="ss-card ss-card-1">
+                <h3>useDebounce.ts</h3>
+                <pre>{`export function useDebounce(value) {
+  const [state, setState] = useState(value)
+  return state
+}`}</pre>
+              </div>
+              <div className="ss-card ss-card-2">
+                <h3>a little idea.tsx</h3>
+                <pre>{`const idea = await playground.create();
+const next = save(idea);`}</pre>
+              </div>
+              <div className="ss-card ss-card-3">
+                <h3>Your best code. Never lost.</h3>
+                <code>SNIPPET SAVED / READY WHEN YOU ARE</code>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <p className="ss-ticker">CAPTURE / ORGANIZE / EXPERIMENT / REUSE</p>
+
+        {/* WHY */}
+        <section className="ss-section">
+          <div className="ss-section-head">
+            <h2>
+              Good code deserves more
+              <br />
+              than a forgotten tab.
+            </h2>
+            <p>
+              Every useful little thing starts as a passing thought. Turn it into
+              a snippet you can actually find again.
+            </p>
+          </div>
+          <div className="ss-grid-3">
+            {steps.map((s) => (
+                <article key={s.n} className="ss-panel">
+                  <span className="ss-num">{s.n}</span>
+                  <h3>{s.title}</h3>
+                  <p>{s.text}</p>
+                  <code className="ss-mini-code">{s.code}</code>
+                </article>
+            ))}
+          </div>
+        </section>
+
+        {/* PLAYGROUND */}
+        <section className="ss-section">
+          <div className="ss-section-head ss-section-head-row">
+            <div>
+              <span className="ss-eyebrow">A LITTLE PLAYGROUND</span>
+              <h2>Think it. Try it. Keep it.</h2>
+              <p>
+                A focused playground for the ideas that can&apos;t wait. Explore
+                your code, then bring the good parts back to your stack.
+              </p>
+            </div>
+            <Link href="/playground" className="ss-btn ss-btn-lime">Explore the playground</Link>
+          </div>
+
+          <div className="ss-playground">
+            <div className="ss-pg-bar">
+              <span>playground.tsx</span>
+              <span>Next: ideas.ts</span>
+            </div>
+            <div className="ss-pg-body">
+            <pre className="ss-editor">{`import { useState } from "react";
+
+export function Idea() {
+  const [saved, setSaved] = useState(false);
+  return (
+    <button onClick={() => setSaved(true)}>
+      {saved ? "Kept." : "Keep it"}
+    </button>
+  );
+}`}</pre>
+              <div className="ss-pg-side">
+                <small>THE FIRST SMALL STEP</small>
+                <h3>Make it count.</h3>
+                <Link href="/playground" className="ss-btn ss-btn-lime">Start playing</Link>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* FINAL CTA */}
+        <section className="ss-final">
+          <h2>Your next project starts with a little snippet.</h2>
+          <p>Keep what you learn. Build what comes next.</p>
+          <Link href="/workspace" className="ss-btn ss-btn-lime">Start your stack</Link>
+        </section>
       </main>
-    </div>
   );
 }
