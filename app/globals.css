@@ -128,3 +128,49 @@
     @apply font-sans;
   }
 }
+
+/* ---------- Dashboard theme (scoped; does not affect the rest of the app) ---------- */
+.dashboard-theme {
+  color-scheme: dark;
+  --background: #0c0e11;
+  --foreground: #f1f3f5;
+  --card: #13161a;
+  --card-foreground: #f1f3f5;
+  --popover: #13161a;
+  --popover-foreground: #f1f3f5;
+  --primary: #c5f26a;
+  --primary-foreground: #0c0e11;
+  --secondary: #1a1e23;
+  --secondary-foreground: #e6e9ec;
+  --muted: #171a1f;
+  --muted-foreground: #8a9099;
+  --accent: #1a1e23;
+  --accent-foreground: #f1f3f5;
+  --border: #22262c;
+  --input: #22262c;
+  --ring: #c5f26a;
+  --sidebar: #101317;
+  --sidebar-border: #22262c;
+}
+
+.dashboard-theme .token.comment,
+.dashboard-theme .token.prolog,
+.dashboard-theme .token.doctype { color: #5f6670; font-style: italic; }
+.dashboard-theme .token.punctuation,
+.dashboard-theme .token.operator { color: #9aa1ab; }
+.dashboard-theme .token.keyword,
+.dashboard-theme .token.tag,
+.dashboard-theme .token.selector,
+.dashboard-theme .token.atrule { color: #f47c9a; }
+.dashboard-theme .token.string,
+.dashboard-theme .token.attr-value,
+.dashboard-theme .token.char { color: #a5e075; }
+.dashboard-theme .token.function,
+.dashboard-theme .token.class-name,
+.dashboard-theme .token.builtin { color: #7cc4ff; }
+.dashboard-theme .token.number,
+.dashboard-theme .token.boolean,
+.dashboard-theme .token.attr-name,
+.dashboard-theme .token.constant { color: #f0b072; }
+.dashboard-theme .token.property,
+.dashboard-theme .token.variable { color: #e6e9ec; }

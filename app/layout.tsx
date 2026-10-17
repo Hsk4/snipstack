@@ -10,10 +10,11 @@ import { Suspense } from 'react';
 import Link from 'next/link';
 
 import './globals.css';
-import { Geist } from "next/font/google";
+import { Geist, Geist_Mono } from "next/font/google";
 import { cn } from "@/lib/utils";
 
 const geist = Geist({subsets:['latin'],variable:'--font-sans'});
+const geistMono = Geist_Mono({subsets:['latin'],variable:'--font-geist-mono'});
 
 export const metadata: Metadata = {
   title: 'SnippetVault',
@@ -57,7 +58,7 @@ export default function RootLayout({
 }>) {
   return (
       <ClerkProvider>
-        <html lang="en" className={cn("font-sans", geist.variable)}>
+        <html lang="en" className={cn("font-sans", geist.variable, geistMono.variable)}>
         <body className="min-h-screen bg-background text-foreground antialiased flex flex-col">
         <header className="border-b border-border px-6 py-4 flex items-center justify-between">
           <div className="flex items-center gap-8">

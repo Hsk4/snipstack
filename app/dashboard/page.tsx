@@ -1,54 +1,60 @@
-import Link from 'next/link';
-import { Suspense } from 'react';
-import { getUserSnippets } from '@/app/actions/snippet';
-import { SnippetCard } from '@/components/SnippetCard';
-import { Button } from '@/components/ui/button';
-import type { Snippet } from '@/app/types';
-import { JSX } from 'react/jsx-runtime';
+import { Suspense } from "react";
+import { currentUser } from "@clerk/nextjs/server";
 
-async function SnippetList(): Promise<JSX.Element> {
-  const snippets: Snippet[] = await getUserSnippets();
+import { getUserSnippets } from "@/app/actions/snippet";
+import { DashboardShell } from "@/components/dashboard/DashboardShell";
+import type { SnippetView } from "@/components/dashboard/types";
 
-  if (snippets.length === 0) {
-    return (
-      <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-border p-12 text-center">
-        <h3 className="font-semibold text-lg">No snippets found</h3>
-        <p className="text-sm text-muted-foreground mt-1 mb-4">
-          Get started by creating your first code snippet.
-        </p>
-        <Link href="/dashboard/new">
-          <Button variant="outline">Create Snippet</Button>
-        </Link>
-      </div>
-    );
+const RELATIVE_UNITS: [Intl.RelativeTimeFormatUnit, number][] = [
+  ["year", 60 * 60 * 24 * 365],
+  ["month", 60 * 60 * 24 * 30],
+  ["week", 60 * 60 * 24 * 7],
+  ["day", 60 * 60 * 24],
+  ["hour", 60 * 60],
+  ["minute", 60],
+];
+
+function timeAgo(date: Date): string {
+  const seconds = Math.round((date.getTime() - Date.now()) / 1000);
+  const formatter = new Intl.RelativeTimeFormat("en", { numeric: "auto" });
+  for (const [unit, size] of RELATIVE_UNITS) {
+    if (Math.abs(seconds) >= size) {
+      return formatter.format(Math.round(seconds / size), unit);
+    }
   }
+  return "just now";
+}
 
+async function DashboardData() {
+  const [snippets, user] = await Promise.all([getUserSnippets(), currentUser()]);
+
+  const views: SnippetView[] = snippets.map((snippet) => {
+    const updated = new Date(snippet.updatedAt ?? snippet.createdAt);
+    return {
+      ...snippet,
+      updatedAt: updated.toISOString(),
+      updatedLabel: timeAgo(updated),
+    };
+  });
+
+  const workspaceName = user?.firstName ? `${user.firstName}'s workspace` : "My workspace";
+
+  return <DashboardShell snippets={views} workspaceName={workspaceName} />;
+}
+
+function DashboardSkeleton() {
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-      {snippets.map((snippet: Snippet) => (
-        <SnippetCard key={snippet.id} snippet={snippet} />
-      ))}
+    <div className="dashboard-theme fixed inset-0 z-50 grid place-items-center bg-background text-sm text-muted-foreground">
+      Loading your snippets...
     </div>
   );
 }
 
-export default function DashboardPage(): JSX.Element {
+export default function DashboardPage() {
   return (
-    <div className="container mx-auto py-10 px-4 space-y-8">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">Your Snippets</h1>
-          <p className="text-muted-foreground mt-1">
-            Manage, organize, and quickly copy your stored code snippets.
-          </p>
-        </div>
-        <Link href="/dashboard/new">
-          <Button>Create Snippet</Button>
-        </Link>
-      </div>
-
-      <Suspense fallback={<div className="text-center py-12 text-muted-foreground">Loading snippets...</div>}>
-        <SnippetList />
+    <div className="dashboard-theme">
+      <Suspense fallback={<DashboardSkeleton />}>
+        <DashboardData />
       </Suspense>
     </div>
   );
