@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { createSnippet } from "@/app/actions/snippet"; // Adjust import path to your actions file
+import { createSnippet } from "@/app/actions/snippet";
 import { Save, Loader2, X } from "lucide-react";
 
 interface SaveSnippetModalProps {
@@ -9,10 +9,9 @@ interface SaveSnippetModalProps {
     onClose: () => void;
     code: string;
     language: string;
-    userId: string; // Pass the authenticated Clerk user ID
 }
 
-export function SaveSnippetModal({ isOpen, onClose, code, language, userId }: SaveSnippetModalProps) {
+export function SaveSnippetModal({ isOpen, onClose, code, language }: SaveSnippetModalProps) {
     const [title, setTitle] = useState("");
     const [description, setDescription] = useState("");
     const [isPublic, setIsPublic] = useState(false);
@@ -26,8 +25,8 @@ export function SaveSnippetModal({ isOpen, onClose, code, language, userId }: Sa
 
         setLoading(true);
         try {
-            await createSnippet({
-                userId,
+            // The signed-in user is resolved on the server inside createSnippet.
+            const result = await createSnippet({
                 title,
                 description,
                 code,
@@ -35,6 +34,10 @@ export function SaveSnippetModal({ isOpen, onClose, code, language, userId }: Sa
                 isPublic,
                 tags: []
             });
+            if (!result.success) {
+                alert(result.error ?? "Failed to save snippet.");
+                return;
+            }
             onClose();
             setTitle("");
             setDescription("");

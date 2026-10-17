@@ -2,13 +2,26 @@
 
 import { useLayoutEffect, useRef } from "react";
 import Prism from "prismjs";
+import "prismjs/components/prism-typescript";
+import "prismjs/components/prism-python";
+import "prismjs/components/prism-sql";
+import "prismjs/components/prism-json";
+import "prismjs/components/prism-go";
+import "prismjs/components/prism-rust";
+import "prismjs/components/prism-markdown";
 
-import type { Grammar } from "@/components/playground/runner";
+import type { SupportedLanguages } from "@/app/types";
 
 interface CodeEditorProps {
   value: string;
-  grammar: Grammar;
+  /** Any Prism grammar name ("javascript", "markup", "python", ...). Unknown names render unhighlighted. */
+  grammar: string;
   onChange: (value: string) => void;
+  placeholder?: string;
+  /** Lets an external <label htmlFor> point at the textarea. */
+  id?: string;
+  invalid?: boolean;
+  describedBy?: string;
 }
 
 function escapeHtml(value: string): string {
@@ -19,6 +32,7 @@ function escapeHtml(value: string): string {
 }
 
 const TAB = "  ";
+const MODIFIER_KEYS = ["Shift", "Control", "Alt", "Meta"];
 
 // The textarea and the highlighted <pre> must share identical metrics.
 const textMetrics =
@@ -28,11 +42,20 @@ const textMetrics =
  * A lightweight editor: a transparent <textarea> typed into, layered over a
  * syntax-highlighted <pre> that mirrors its content and scroll position.
  */
-export function CodeEditor({ value, grammar, onChange }: CodeEditorProps) {
+export function CodeEditor({
+  value,
+  grammar,
+  onChange,
+  placeholder,
+  id,
+  invalid,
+  describedBy,
+}: CodeEditorProps) {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const preRef = useRef<HTMLPreElement>(null);
   const gutterRef = useRef<HTMLDivElement>(null);
   const pendingCaret = useRef<number | null>(null);
+  const escapePressed = useRef(false);
 
   // Restore the caret after a programmatic edit (Tab) re-renders the textarea.
   useLayoutEffect(() => {
@@ -45,8 +68,8 @@ export function CodeEditor({ value, grammar, onChange }: CodeEditorProps) {
     }
   }, [value]);
 
-  const highlighted = Prism.languages[grammar]
-    ? Prism.highlight(value, Prism.languages[grammar], grammar)
+  const highlighted = Prism.languages[grammar as any]
+    ? Prism.highlight(value, Prism.languages[grammar as any], grammar)
     : escapeHtml(value);
 
   const lineCount = value.split("\n").length;
@@ -62,10 +85,22 @@ export function CodeEditor({ value, grammar, onChange }: CodeEditorProps) {
   }
 
   function handleKeyDown(event: React.KeyboardEvent<HTMLTextAreaElement>) {
-    if (event.key !== "Tab") return;
+    if (event.key === "Escape") {
+      escapePressed.current = true;
+      return;
+    }
+    if (MODIFIER_KEYS.includes(event.key)) return;
+    if (event.key !== "Tab") {
+      escapePressed.current = false;
+      return;
+    }
+    if (event.shiftKey || escapePressed.current) {
+      escapePressed.current = false;
+      return; // let the browser move focus
+    }
+
     event.preventDefault();
-    const textarea = event.currentTarget;
-    const { selectionStart, selectionEnd } = textarea;
+    const { selectionStart, selectionEnd } = event.currentTarget;
     pendingCaret.current = selectionStart + TAB.length;
     onChange(
       value.slice(0, selectionStart) + TAB + value.slice(selectionEnd),
@@ -92,17 +127,31 @@ export function CodeEditor({ value, grammar, onChange }: CodeEditorProps) {
         >
           <code dangerouslySetInnerHTML={{ __html: `${highlighted}\n` }} />
         </pre>
+        {value === "" && placeholder && (
+          <span
+            aria-hidden
+            className={`pointer-events-none absolute inset-0 overflow-hidden text-muted-foreground/60 ${textMetrics}`}
+          >
+            {placeholder}
+          </span>
+        )}
         <textarea
           ref={textareaRef}
+          id={id}
           value={value}
           onChange={(event) => onChange(event.target.value)}
           onKeyDown={handleKeyDown}
+          onBlur={() => {
+            escapePressed.current = false;
+          }}
           onScroll={syncScroll}
           spellCheck={false}
           autoCapitalize="off"
           autoCorrect="off"
           wrap="off"
-          aria-label="Code editor"
+          aria-label={id ? undefined : "Code editor"}
+          aria-invalid={invalid || undefined}
+          aria-describedby={describedBy}
           className={`absolute inset-0 size-full resize-none overflow-auto bg-transparent text-transparent caret-primary outline-none selection:bg-primary/25 ${textMetrics}`}
         />
       </div>

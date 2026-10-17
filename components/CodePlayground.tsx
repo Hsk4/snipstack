@@ -64,7 +64,7 @@ const KEYWORDS = [
 
 export function CodePlayground() {
     const [mounted, setMounted] = useState(false);
-    const [language, setLanguage] = useState<"javascript" | "json" | "html">("javascript");
+    const [language, setLanguage] = useState<'javascript' | 'json' | 'html'>('javascript');
     const [code, setCode] = useState(TEMPLATES.javascript);
     const [logs, setLogs] = useState<ConsoleLog[]>([]);
     const [copied, setCopied] = useState(false);
@@ -87,7 +87,7 @@ export function CodePlayground() {
         }
     }, [code, language, mounted]);
 
-    const handleLanguageChange = (lang: "javascript" | "json" | "html") => {
+    const handleLanguageChange = (lang: 'javascript' | 'json' | 'html') => {
         setLanguage(lang);
         setCode(TEMPLATES[lang]);
         setLogs([]);
@@ -228,7 +228,7 @@ export function CodePlayground() {
                         <span>Mode:</span>
                         <select
                             value={language}
-                            onChange={(e) => handleLanguageChange(e.target.value as "javascript" | "json" | "html")}
+                            onChange={(e) => handleLanguageChange(e.target.value as 'javascript' | 'json' | 'html')}
                             className="bg-transparent text-white font-semibold focus:outline-none cursor-pointer"
                         >
                             <option value="javascript" className="bg-zinc-900">JavaScript Sandbox</option>

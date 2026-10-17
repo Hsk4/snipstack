@@ -8,7 +8,8 @@ export type SupportedLanguages =
   | "css"
   | "json"
   | "markdown"
-  | "sql";
+  | "sql"
+  | "bash";
 
 
 export interface Snippet {
