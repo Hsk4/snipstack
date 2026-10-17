@@ -1,0 +1,25 @@
+.snip-editor textarea {
+    outline: none !important;
+    caret-color: #f4f4f5;
+}
+.snip-editor textarea::placeholder { color: #52525b; }
+
+.snip-editor .token.comment,
+.snip-editor .token.prolog,
+.snip-editor .token.doctype { color: #6b7280; font-style: italic; }
+.snip-editor .token.keyword,
+.snip-editor .token.selector,
+.snip-editor .token.atrule { color: #c6f26b; }
+.snip-editor .token.string,
+.snip-editor .token.attr-value,
+.snip-editor .token.template-string { color: #ffb86b; }
+.snip-editor .token.number,
+.snip-editor .token.boolean,
+.snip-editor .token.constant { color: #ff8fa3; }
+.snip-editor .token.function,
+.snip-editor .token.class-name { color: #7fb4ff; }
+.snip-editor .token.operator,
+.snip-editor .token.punctuation { color: #9aa1ad; }
+.snip-editor .token.tag,
+.snip-editor .token.property,
+.snip-editor .token.builtin { color: #7fe0d0; }

@@ -1,0 +1,1665 @@
+diff --git a/app/actions/snippet.ts b/app/actions/snippet.ts
+index 0e0741a..e36bf66 100644
+--- a/app/actions/snippet.ts
++++ b/app/actions/snippet.ts
+@@ -101,7 +101,6 @@ export async function getSnippetById(id: string): Promise<Snippet | null> {
+ 
+ // Create a new snippet
+ export async function createSnippet(formData: {
+-  userId: string;
+   title: string;
+   description: string;
+   code: string;
+@@ -109,12 +108,20 @@ export async function createSnippet(formData: {
+   tags: string[];
+   isPublic: boolean;
+ }) {
++  const { userId } = await auth();
++  if (!userId) {
++    return { success: false, error: 'You need to be signed in to save a snippet.' };
++  }
++  if (!formData.title.trim() || !formData.code.trim()) {
++    return { success: false, error: 'Title and code are required.' };
++  }
++
+   try {
+     const { data, error } = await supabase
+         .from('snippets')
+         .insert([
+           {
+-            userId: formData.userId,
++            userId,
+             title: formData.title,
+             description: formData.description,
+             code: formData.code,
+diff --git a/app/dashboard/new/page.tsx b/app/dashboard/new/page.tsx
+index 1a2939b..1ea7dee 100644
+--- a/app/dashboard/new/page.tsx
++++ b/app/dashboard/new/page.tsx
+@@ -1,213 +1,27 @@
+-'use client';
++import { Suspense } from "react";
+ 
+-import { JSX, useState, useTransition } from 'react';
+-import { useRouter } from 'next/navigation';
+-import { createSnippet } from '@/app/actions/snippet';
+-import { Button } from '@/components/ui/button';
+-import { Input } from '@/components/ui/input';
+-import { Textarea } from '@/components/ui/textarea';
+-
+-export default function NewSnippetPage(): JSX.Element {
+-  const router = useRouter();
+-  const [isPending, startTransition] = useTransition();
+-
+-  const [title, setTitle] = useState<string>('');
+-  const [description, setDescription] = useState<string>('');
+-  const [code, setCode] = useState<string>('');
+-  const [language, setLanguage] = useState<string>('typescript');
+-  const [tagInput, setTagInput] = useState<string>('');
+-  const [tags, setTags] = useState<string[]>([]);
+-  const [isPublic, setIsPublic] = useState<boolean>(false);
+-  const [error, setError] = useState<string | null>(null);
+-
+-  const handleAddTag = (e: React.KeyboardEvent<HTMLInputElement>): void => {
+-    if (e.key === 'Enter' || e.key === ',') {
+-      e.preventDefault();
+-      const trimmed = tagInput.trim().toLowerCase();
+-      if (trimmed && !tags.includes(trimmed)) {
+-        setTags([...tags, trimmed]);
+-        setTagInput('');
+-      }
+-    }
+-  };
+-
+-  const removeTag = (tagToRemove: string): void => {
+-    setTags(tags.filter((tag: string) => tag !== tagToRemove));
+-  };
+-
+-  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>): Promise<void> => {
+-    e.preventDefault();
+-    setError(null);
+-
+-    if (!title.trim() || !code.trim()) {
+-      setError('Title and code are required.');
+-      return;
+-    }
+-
+-    const pendingTag = tagInput.trim().toLowerCase();
+-    const tagsToSave =
+-      pendingTag && !tags.includes(pendingTag) ? [...tags, pendingTag] : tags;
+-
+-    startTransition(async () => {
+-      try {
+-        await createSnippet({
+-          title,
+-          description: description.trim() || undefined,
+-          code,
+-          language,
+-          tags: tagsToSave,
+-          isPublic,
+-        });
+-        router.push('/dashboard');
+-        router.refresh();
+-      } catch (err: unknown) {
+-        if (err instanceof Error) {
+-          setError(err.message);
+-        } else {
+-          setError('An unexpected error occurred.');
+-        }
+-      }
+-    });
+-  };
++import { CreateSnippetShell } from "@/components/dashboard/CreateSnippetShell";
++import { getWorkspaceContext } from "@/lib/workspace";
+ 
++async function NewSnippetData() {
++  const { workspaceName, collections } = await getWorkspaceContext();
+   return (
+-    <div className="container max-w-2xl mx-auto py-10 px-4 space-y-8">
+-      <div>
+-        <h1 className="text-3xl font-bold tracking-tight">Create New Snippet</h1>
+-        <p className="text-muted-foreground mt-1">
+-          Add a new code snippet to your secure vault.
+-        </p>
+-      </div>
+-
+-      {error && (
+-        <div className="rounded-lg bg-destructive/15 p-4 text-sm text-destructive">
+-          {error}
+-        </div>
+-      )}
+-
+-      <form onSubmit={handleSubmit} className="space-y-6">
+-        <div className="space-y-2">
+-          <label htmlFor="snippet-title" className="text-sm font-medium leading-none">
+-            Title
+-          </label>
+-          <Input
+-            id="snippet-title"
+-            type="text"
+-            placeholder="e.g., JWT Authentication Middleware"
+-            value={title}
+-            onChange={(e: React.ChangeEvent<HTMLInputElement>) => setTitle(e.target.value)}
+-            required
+-          />
+-        </div>
+-
+-        <div className="space-y-2">
+-          <label htmlFor="snippet-description" className="text-sm font-medium leading-none">
+-            Description (Optional)
+-          </label>
+-          <Textarea
+-            id="snippet-description"
+-            placeholder="Brief explanation of how this snippet works..."
+-            value={description}
+-            onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setDescription(e.target.value)}
+-          />
+-        </div>
+-
+-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+-          <div className="space-y-2">
+-            <label htmlFor="snippet-language" className="text-sm font-medium leading-none">
+-              Language
+-            </label>
+-            <select
+-              id="snippet-language"
+-              value={language}
+-              onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setLanguage(e.target.value)}
+-              className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+-            >
+-              <option value="typescript">TypeScript</option>
+-              <option value="javascript">JavaScript</option>
+-              <option value="python">Python</option>
+-              <option value="sql">SQL</option>
+-              <option value="html">HTML</option>
+-              <option value="css">CSS</option>
+-              <option value="json">JSON</option>
+-              <option value="bash">Bash</option>
+-            </select>
+-          </div>
++    <CreateSnippetShell workspaceName={workspaceName} collections={collections} />
++  );
++}
+ 
+-          <div className="space-y-2 flex items-center pt-6">
+-            <label className="flex items-center gap-2 cursor-pointer">
+-              <input
+-                type="checkbox"
+-                checked={isPublic}
+-                onChange={(e: React.ChangeEvent<HTMLInputElement>) => setIsPublic(e.target.checked)}
+-                className="h-4 w-4 rounded border-input"
+-              />
+-              <span className="text-sm font-medium">Make public</span>
+-            </label>
++export default function NewSnippetPage() {
++  return (
++    <div className="dashboard-theme">
++      <Suspense
++        fallback={
++          <div className="fixed inset-0 z-50 grid place-items-center bg-background text-sm text-muted-foreground">
++            Loading...
+           </div>
+-        </div>
+-
+-        <div className="space-y-2">
+-          <label htmlFor="snippet-tags" className="text-sm font-medium leading-none">
+-            Tags (Press Enter or comma to add)
+-          </label>
+-          <Input
+-            id="snippet-tags"
+-            type="text"
+-            placeholder="e.g., auth, security, jwt"
+-            value={tagInput}
+-            onChange={(e: React.ChangeEvent<HTMLInputElement>) => setTagInput(e.target.value)}
+-            onKeyDown={handleAddTag}
+-          />
+-          {tags.length > 0 && (
+-            <div className="flex gap-2 flex-wrap pt-2">
+-              {tags.map((tag: string) => (
+-                <span
+-                  key={tag}
+-                  className="inline-flex items-center gap-1 rounded bg-secondary px-2.5 py-1 text-xs font-semibold text-secondary-foreground"
+-                >
+-                  #{tag}
+-                  <button
+-                    type="button"
+-                    onClick={() => removeTag(tag)}
+-                    className="ml-1 text-muted-foreground hover:text-foreground"
+-                  >
+-                    &times;
+-                  </button>
+-                </span>
+-              ))}
+-            </div>
+-          )}
+-        </div>
+-
+-        <div className="space-y-2">
+-          <label htmlFor="snippet-code" className="text-sm font-medium leading-none">
+-            Code Content
+-          </label>
+-          <Textarea
+-            id="snippet-code"
+-            placeholder="Paste your code here..."
+-            rows={10}
+-            value={code}
+-            onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setCode(e.target.value)}
+-            className="font-mono text-sm bg-zinc-950 text-zinc-50 dark:bg-zinc-950"
+-            required
+-          />
+-        </div>
+-
+-        <div className="flex justify-end gap-4">
+-          <Button
+-            type="button"
+-            variant="outline"
+-            onClick={() => router.push('/dashboard')}
+-          >
+-            Cancel
+-          </Button>
+-          <Button type="submit" disabled={isPending}>
+-            {isPending ? 'Saving...' : 'Save Snippet'}
+-          </Button>
+-        </div>
+-      </form>
++        }
++      >
++        <NewSnippetData />
++      </Suspense>
+     </div>
+   );
+-}
+\ No newline at end of file
++}
+diff --git a/app/dashboard/page.tsx b/app/dashboard/page.tsx
+index 8bdaa82..e36d103 100644
+--- a/app/dashboard/page.tsx
++++ b/app/dashboard/page.tsx
+@@ -1,9 +1,8 @@
+ import { Suspense } from "react";
+-import { currentUser } from "@clerk/nextjs/server";
+ 
+-import { getUserSnippets } from "@/app/actions/snippet";
+ import { DashboardShell } from "@/components/dashboard/DashboardShell";
+ import type { SnippetView } from "@/components/dashboard/types";
++import { getWorkspaceContext } from "@/lib/workspace";
+ 
+ const RELATIVE_UNITS: [Intl.RelativeTimeFormatUnit, number][] = [
+   ["year", 60 * 60 * 24 * 365],
+@@ -26,7 +25,7 @@ function timeAgo(date: Date): string {
+ }
+ 
+ async function DashboardData() {
+-  const [snippets, user] = await Promise.all([getUserSnippets(), currentUser()]);
++  const { snippets, workspaceName } = await getWorkspaceContext();
+ 
+   const views: SnippetView[] = snippets.map((snippet) => {
+     const updated = new Date(snippet.updatedAt ?? snippet.createdAt);
+@@ -37,8 +36,6 @@ async function DashboardData() {
+     };
+   });
+ 
+-  const workspaceName = user?.firstName ? `${user.firstName}'s workspace` : "My workspace";
+-
+   return <DashboardShell snippets={views} workspaceName={workspaceName} />;
+ }
+ 
+diff --git a/app/globals.css b/app/globals.css
+index 4c15243..0cc0d85 100644
+--- a/app/globals.css
++++ b/app/globals.css
+@@ -149,6 +149,7 @@
+   --border: #22262c;
+   --input: #22262c;
+   --ring: #c5f26a;
++  --destructive: #ff7a7a;
+   --sidebar: #101317;
+   --sidebar-border: #22262c;
+ }
+diff --git a/app/playground/page.tsx b/app/playground/page.tsx
+index a58f196..88fc37e 100644
+--- a/app/playground/page.tsx
++++ b/app/playground/page.tsx
+@@ -1,22 +1,15 @@
+ import { Suspense } from "react";
+-import { auth, currentUser } from "@clerk/nextjs/server";
+ 
+-import { getUserSnippets } from "@/app/actions/snippet";
+-import { getCollections } from "@/components/dashboard/collections";
+ import { PlaygroundShell } from "@/components/playground/PlaygroundShell";
++import { getWorkspaceContext } from "@/lib/workspace";
+ 
+ async function PlaygroundData() {
+-  const [{ userId }, user, snippets] = await Promise.all([
+-    auth(),
+-    currentUser(),
+-    getUserSnippets(),
+-  ]);
+-
++  const { userId, workspaceName, collections } = await getWorkspaceContext();
+   return (
+     <PlaygroundShell
+       userId={userId}
+-      workspaceName={user?.firstName ? `${user.firstName}'s workspace` : "My workspace"}
+-      collections={getCollections(snippets.map((snippet) => snippet.tags))}
++      workspaceName={workspaceName}
++      collections={collections}
+     />
+   );
+ }
+diff --git a/components/SaveSnippetModal.tsx b/components/SaveSnippetModal.tsx
+index 182042d..7119c61 100644
+--- a/components/SaveSnippetModal.tsx
++++ b/components/SaveSnippetModal.tsx
+@@ -9,10 +9,9 @@ interface SaveSnippetModalProps {
+     onClose: () => void;
+     code: string;
+     language: string;
+-    userId: string; // Pass the authenticated Clerk user ID
+ }
+ 
+-export function SaveSnippetModal({ isOpen, onClose, code, language, userId }: SaveSnippetModalProps) {
++export function SaveSnippetModal({ isOpen, onClose, code, language }: SaveSnippetModalProps) {
+     const [title, setTitle] = useState("");
+     const [description, setDescription] = useState("");
+     const [isPublic, setIsPublic] = useState(false);
+@@ -26,8 +25,8 @@ export function SaveSnippetModal({ isOpen, onClose, code, language, userId }: Sa
+ 
+         setLoading(true);
+         try {
+-            await createSnippet({
+-                userId,
++            // The signed-in user is resolved on the server inside createSnippet.
++            const result = await createSnippet({
+                 title,
+                 description,
+                 code,
+@@ -35,6 +34,10 @@ export function SaveSnippetModal({ isOpen, onClose, code, language, userId }: Sa
+                 isPublic,
+                 tags: []
+             });
++            if (!result.success) {
++                alert(result.error ?? "Failed to save snippet.");
++                return;
++            }
+             onClose();
+             setTitle("");
+             setDescription("");
+diff --git a/components/dashboard/AppFrame.tsx b/components/dashboard/AppFrame.tsx
+new file mode 100644
+index 0000000..592e65d
+--- /dev/null
++++ b/components/dashboard/AppFrame.tsx
+@@ -0,0 +1,55 @@
++"use client";
++
++import {
++  DashboardSidebar,
++  type Collection,
++} from "@/components/dashboard/DashboardSidebar";
++
++interface AppFrameProps {
++  active: "library" | "playground";
++  workspaceName: string;
++  collections: Collection[];
++  /** Library page only: filter collections in place instead of linking out. */
++  activeCollection?: string | null;
++  onSelectCollection?: (name: string | null) => void;
++  breadcrumb: string;
++  /** Width and vertical rhythm of the content column. */
++  contentClassName?: string;
++  children: React.ReactNode;
++}
++
++/** Full-screen workspace shell: sidebar on the left, scrolling content column on the right. */
++export function AppFrame({
++  active,
++  workspaceName,
++  collections,
++  activeCollection,
++  onSelectCollection,
++  breadcrumb,
++  contentClassName = "max-w-5xl gap-6",
++  children,
++}: AppFrameProps) {
++  return (
++    <div className="fixed inset-0 z-50 flex bg-background text-foreground">
++      <DashboardSidebar
++        active={active}
++        workspaceName={workspaceName}
++        collections={collections}
++        activeCollection={activeCollection}
++        onSelectCollection={onSelectCollection}
++      />
++
++      <main className="min-w-0 flex-1 overflow-y-auto">
++        <div
++          className={`mx-auto flex flex-col px-6 py-5 md:px-8 ${contentClassName}`}
++        >
++          <div className="flex items-center justify-between text-xs text-muted-foreground">
++            <span>{breadcrumb}</span>
++            <span>Personal workspace</span>
++          </div>
++          {children}
++        </div>
++      </main>
++    </div>
++  );
++}
+diff --git a/components/dashboard/CreateSnippetShell.tsx b/components/dashboard/CreateSnippetShell.tsx
+new file mode 100644
+index 0000000..db261fc
+--- /dev/null
++++ b/components/dashboard/CreateSnippetShell.tsx
+@@ -0,0 +1,403 @@
++"use client";
++
++import { useState } from "react";
++import Link from "next/link";
++import { useRouter } from "next/navigation";
++import { ChevronDown } from "lucide-react";
++
++import { createSnippet } from "@/app/actions/snippet";
++import { AppFrame } from "@/components/dashboard/AppFrame";
++import type { Collection } from "@/components/dashboard/DashboardSidebar";
++import { LANGUAGE_LABELS, languageLabel } from "@/components/dashboard/types";
++import { CodeEditor } from "@/components/playground/CodeEditor";
++import { Button, buttonVariants } from "@/components/ui/button";
++
++interface CreateSnippetShellProps {
++  workspaceName: string;
++  collections: Collection[];
++}
++
++type FieldErrors = { title?: string; code?: string };
++
++const fieldClass =
++  "w-full rounded-lg border border-border bg-background/60 px-3 text-sm text-foreground outline-none transition-colors placeholder:text-muted-foreground focus:border-primary/60 aria-[invalid=true]:border-destructive";
++
++const TIPS = [
++  "Name the problem it solves",
++  "Choose a language",
++  "Tag it for your future self",
++];
++
++function normalizeTag(raw: string): string {
++  return raw.trim().toLowerCase().replace(/^#+/, "").replace(/\s+/g, " ");
++}
++
++function unique(values: string[]): string[] {
++  return [...new Set(values)];
++}
++
++function Field({
++  label,
++  htmlFor,
++  aside,
++  hint,
++  error,
++  children,
++}: {
++  label: string;
++  htmlFor: string;
++  aside?: string;
++  hint?: string;
++  error?: string;
++  children: React.ReactNode;
++}) {
++  return (
++    <div className="space-y-2">
++      <div className="flex items-baseline justify-between gap-3">
++        <label htmlFor={htmlFor} className="text-[13px] font-semibold">
++          {label}
++        </label>
++        {aside && (
++          <span className="text-[11px] text-muted-foreground">{aside}</span>
++        )}
++      </div>
++      {children}
++      {error ? (
++        <p id={`${htmlFor}-error`} role="alert" className="text-xs text-destructive">
++          {error}
++        </p>
++      ) : hint ? (
++        <p id={`${htmlFor}-hint`} className="text-[11px] text-muted-foreground">
++          {hint}
++        </p>
++      ) : null}
++    </div>
++  );
++}
++
++export function CreateSnippetShell({
++  workspaceName,
++  collections,
++}: CreateSnippetShellProps) {
++  const router = useRouter();
++
++  const [title, setTitle] = useState("");
++  const [description, setDescription] = useState("");
++  const [language, setLanguage] = useState("javascript");
++  const [collection, setCollection] = useState("");
++  const [code, setCode] = useState("");
++  const [tags, setTags] = useState<string[]>([]);
++  const [tagInput, setTagInput] = useState("");
++  const [isPublic, setIsPublic] = useState(false);
++
++  const [errors, setErrors] = useState<FieldErrors>({});
++  const [serverError, setServerError] = useState<string | null>(null);
++  const [saving, setSaving] = useState(false);
++
++  function addTag(raw: string) {
++    const tag = normalizeTag(raw);
++    if (tag) setTags((current) => unique([...current, tag]));
++    setTagInput("");
++  }
++
++  function handleTagChange(value: string) {
++    if (!value.includes(",")) {
++      setTagInput(value);
++      return;
++    }
++    // Typing or pasting "a, b, c" commits everything before the last comma.
++    const parts = value.split(",");
++    const rest = parts.pop() ?? "";
++    setTags((current) =>
++      unique([...current, ...parts.map(normalizeTag).filter(Boolean)]),
++    );
++    setTagInput(rest);
++  }
++
++  function handleTagKeyDown(event: React.KeyboardEvent<HTMLInputElement>) {
++    if (event.key === "Enter") {
++      event.preventDefault();
++      addTag(tagInput);
++    } else if (event.key === "Backspace" && tagInput === "" && tags.length > 0) {
++      setTags((current) => current.slice(0, -1));
++    }
++  }
++
++  async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
++    event.preventDefault();
++    if (saving) return;
++
++    const nextErrors: FieldErrors = {};
++    if (!title.trim()) nextErrors.title = "Give your snippet a title.";
++    if (!code.trim()) nextErrors.code = "Add some code to save.";
++    setErrors(nextErrors);
++    setServerError(null);
++    if (nextErrors.title || nextErrors.code) {
++      document
++        .getElementById(nextErrors.title ? "snippet-title" : "snippet-code")
++        ?.focus();
++      return;
++    }
++
++    const pending = normalizeTag(tagInput);
++    const allTags = unique([
++      ...tags,
++      ...(pending ? [pending] : []),
++      ...(collection ? [collection] : []),
++    ]);
++
++    setSaving(true);
++    const result = await createSnippet({
++      title: title.trim(),
++      description: description.trim(),
++      code,
++      language,
++      tags: allTags,
++      isPublic,
++    });
++
++    if (!result.success) {
++      setServerError(result.error ?? "Something went wrong saving your snippet.");
++      setSaving(false);
++      return;
++    }
++    router.push("/dashboard");
++  }
++
++  return (
++    <AppFrame
++      active="library"
++      workspaceName={workspaceName}
++      collections={collections}
++      breadcrumb="Workspace / All snippets / Create snippet"
++      contentClassName="max-w-5xl gap-6"
++    >
++      <div>
++        <h1 className="text-3xl font-bold tracking-tight">
++          Keep a good idea close.
++        </h1>
++        <p className="mt-1.5 text-xs text-muted-foreground">
++          Create a snippet now. Thank yourself later.
++        </p>
++      </div>
++
++      <div className="grid items-start gap-5 lg:grid-cols-[minmax(0,1fr)_17rem]">
++        <form
++          noValidate
++          onSubmit={handleSubmit}
++          onKeyDown={(event) => {
++            if ((event.metaKey || event.ctrlKey) && event.key === "Enter") {
++              event.preventDefault();
++              event.currentTarget.requestSubmit();
++            }
++          }}
++          className="space-y-5 rounded-xl border border-border bg-card p-6"
++        >
++          <div>
++            <h2 className="text-[13px] font-semibold">Create snippet</h2>
++            <p className="mt-1 text-xs text-muted-foreground">
++              Add your code and a few details to make it easy to find.
++            </p>
++          </div>
++
++          {serverError && (
++            <div
++              role="alert"
++              className="rounded-lg border border-destructive/40 bg-destructive/10 px-3 py-2 text-xs text-destructive"
++            >
++              {serverError}
++            </div>
++          )}
++
++          <Field label="Title" htmlFor="snippet-title" error={errors.title}>
++            <input
++              id="snippet-title"
++              value={title}
++              onChange={(event) => {
++                setTitle(event.target.value);
++                if (errors.title) setErrors((current) => ({ ...current, title: undefined }));
++              }}
++              placeholder="e.g. A reusable debounce hook"
++              aria-invalid={errors.title ? true : undefined}
++              aria-describedby={errors.title ? "snippet-title-error" : undefined}
++              className={`${fieldClass} h-10`}
++            />
++          </Field>
++
++          <Field label="Description" htmlFor="snippet-description">
++            <textarea
++              id="snippet-description"
++              value={description}
++              onChange={(event) => setDescription(event.target.value)}
++              rows={3}
++              placeholder="What does this snippet do, and when would you use it?"
++              className={`${fieldClass} resize-y py-2.5`}
++            />
++          </Field>
++
++          <div className="grid gap-5 sm:grid-cols-2">
++            <Field label="Language" htmlFor="snippet-language">
++              <div className="relative">
++                <select
++                  id="snippet-language"
++                  value={language}
++                  onChange={(event) => setLanguage(event.target.value)}
++                  className={`${fieldClass} h-10 cursor-pointer appearance-none pr-9`}
++                >
++                  {Object.entries(LANGUAGE_LABELS).map(([value, label]) => (
++                    <option key={value} value={value}>
++                      {label}
++                    </option>
++                  ))}
++                </select>
++                <ChevronDown className="pointer-events-none absolute right-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
++              </div>
++            </Field>
++
++            <Field label="Collection" htmlFor="snippet-collection">
++              <div className="relative">
++                <select
++                  id="snippet-collection"
++                  value={collection}
++                  onChange={(event) => setCollection(event.target.value)}
++                  className={`${fieldClass} h-10 cursor-pointer appearance-none pr-9`}
++                >
++                  <option value="">No collection</option>
++                  {collections.map((item) => (
++                    <option key={item.name} value={item.name}>
++                      {item.name}
++                    </option>
++                  ))}
++                </select>
++                <ChevronDown className="pointer-events-none absolute right-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
++              </div>
++            </Field>
++          </div>
++
++          <Field
++            label="Code"
++            htmlFor="snippet-code"
++            aside={languageLabel(language)}
++            error={errors.code}
++            hint="Tab indents. Press Esc, then Tab, to leave the editor."
++          >
++            <div
++              className={`h-72 overflow-hidden rounded-lg border bg-background/60 transition-colors focus-within:border-primary/60 ${
++                errors.code ? "border-destructive" : "border-border"
++              }`}
++            >
++              <CodeEditor
++                id="snippet-code"
++                value={code}
++                grammar={language}
++                onChange={(value) => {
++                  setCode(value);
++                  if (errors.code) setErrors((current) => ({ ...current, code: undefined }));
++                }}
++                placeholder="// Paste or write your snippet here"
++                invalid={Boolean(errors.code)}
++                describedBy={
++                  errors.code ? "snippet-code-error" : "snippet-code-hint"
++                }
++              />
++            </div>
++          </Field>
++
++          <Field
++            label="Tags"
++            htmlFor="snippet-tags"
++            hint="Press Enter or a comma to add a tag."
++          >
++            <div className="flex min-h-10 flex-wrap items-center gap-1.5 rounded-lg border border-border bg-background/60 px-2 py-1.5 transition-colors focus-within:border-primary/60">
++              {tags.map((tag) => (
++                <span
++                  key={tag}
++                  className="inline-flex items-center gap-1 rounded-md bg-secondary px-2 py-0.5 text-xs text-secondary-foreground"
++                >
++                  #{tag}
++                  <button
++                    type="button"
++                    onClick={() =>
++                      setTags((current) => current.filter((item) => item !== tag))
++                    }
++                    aria-label={`Remove tag ${tag}`}
++                    className="text-muted-foreground hover:text-foreground"
++                  >
++                    ×
++                  </button>
++                </span>
++              ))}
++              <input
++                id="snippet-tags"
++                value={tagInput}
++                onChange={(event) => handleTagChange(event.target.value)}
++                onKeyDown={handleTagKeyDown}
++                onBlur={() => addTag(tagInput)}
++                placeholder={tags.length === 0 ? "e.g. hooks, performance, utilities" : ""}
++                className="min-w-32 flex-1 bg-transparent px-1 text-sm outline-none placeholder:text-muted-foreground"
++              />
++            </div>
++          </Field>
++
++          <div className="flex flex-wrap items-center justify-between gap-4 pt-1">
++            <label className="flex cursor-pointer items-center gap-2 text-xs text-muted-foreground">
++              <input
++                type="checkbox"
++                checked={isPublic}
++                onChange={(event) => setIsPublic(event.target.checked)}
++                className="size-3.5 cursor-pointer accent-primary"
++              />
++              Make public
++              <span className="text-muted-foreground/60">· shown on Explore</span>
++            </label>
++
++            <div className="flex items-center gap-2">
++              <Link
++                href="/dashboard"
++                className={buttonVariants({ variant: "ghost", size: "lg" })}
++              >
++                Cancel
++              </Link>
++              <Button type="submit" size="lg" disabled={saving}>
++                {saving ? "Creating..." : "Create snippet"}
++              </Button>
++            </div>
++          </div>
++        </form>
++
++        <aside className="space-y-4">
++          <section className="rounded-xl border border-border bg-card p-5">
++            <h2 className="text-[13px] font-semibold">A little context goes a long way.</h2>
++            <p className="mt-2 text-xs leading-relaxed text-muted-foreground">
++              Use a clear title, add a helpful description, and group related
++              snippets into collections.
++            </p>
++            <ol className="mt-4 space-y-2 text-xs text-muted-foreground">
++              {TIPS.map((tip, index) => (
++                <li key={tip} className="flex gap-3">
++                  <span className="font-mono text-primary">
++                    {String(index + 1).padStart(2, "0")}
++                  </span>
++                  {tip}
++                </li>
++              ))}
++            </ol>
++          </section>
++
++          <section className="rounded-xl border border-border bg-card p-5">
++            <h2 className="text-[13px] font-semibold">Still working it out?</h2>
++            <p className="mt-2 text-xs leading-relaxed text-muted-foreground">
++              Try your idea in the playground before adding it to your stack.
++            </p>
++            <Link
++              href="/playground"
++              className={`${buttonVariants({ variant: "secondary", size: "lg" })} mt-4 w-full`}
++            >
++              Open playground
++            </Link>
++          </section>
++        </aside>
++      </div>
++    </AppFrame>
++  );
++}
+diff --git a/components/dashboard/DashboardShell.tsx b/components/dashboard/DashboardShell.tsx
+index 21f62b7..87ade87 100644
+--- a/components/dashboard/DashboardShell.tsx
++++ b/components/dashboard/DashboardShell.tsx
+@@ -5,7 +5,7 @@ import Link from "next/link";
+ import { Search } from "lucide-react";
+ 
+ import { buttonVariants } from "@/components/ui/button";
+-import { DashboardSidebar } from "@/components/dashboard/DashboardSidebar";
++import { AppFrame } from "@/components/dashboard/AppFrame";
+ import { getCollections } from "@/components/dashboard/collections";
+ import { SnippetTile } from "@/components/dashboard/SnippetTile";
+ import { languageLabel, type SnippetView } from "@/components/dashboard/types";
+@@ -88,168 +88,159 @@ export function DashboardShell({ snippets, workspaceName }: DashboardShellProps)
+   ];
+ 
+   return (
+-    <div className="fixed inset-0 z-50 flex bg-background text-foreground">
+-      <DashboardSidebar
+-        active="library"
+-        workspaceName={workspaceName}
+-        collections={collections}
+-        activeCollection={collection}
+-        onSelectCollection={(name) => {
+-          setCollection(name);
+-          setTab("all");
+-        }}
+-      />
+-
+-      <main className="min-w-0 flex-1 overflow-y-auto">
+-        <div className="mx-auto flex max-w-5xl flex-col gap-6 px-6 py-5 md:px-8">
+-          <div className="flex items-center justify-between text-xs text-muted-foreground">
+-            <span>Workspace / Library</span>
+-            <span>Personal workspace</span>
+-          </div>
+-
+-          <div className="flex flex-wrap items-end justify-between gap-4">
+-            <div>
+-              <h1 className="text-3xl font-bold tracking-tight">
+-                Your snippets, all in one place.
+-              </h1>
+-              <p className="mt-1.5 text-xs text-muted-foreground">
+-                Save what works. Find it faster. Keep building.
+-              </p>
+-            </div>
+-            <Link href="/dashboard/new" className={buttonVariants({ size: "lg" })}>
+-              New snippet
+-            </Link>
+-          </div>
+-
+-          <section className="relative overflow-hidden rounded-xl border border-border bg-card px-6 py-7">
+-            <p className="text-[10px] font-medium uppercase tracking-[0.14em] text-muted-foreground/70">
+-              Your next idea starts here
+-            </p>
+-            <h2 className="mt-3 text-2xl font-bold tracking-tight">
+-              Less searching. More shipping.
+-            </h2>
+-            <p className="mt-2 text-xs text-muted-foreground">
+-              Turn a quick experiment into something worth keeping.
+-            </p>
+-            <Link
+-              href="/playground"
+-              className={`${buttonVariants({ size: "lg" })} mt-4`}
+-            >
+-              Explore the playground
+-            </Link>
+-
+-            <div
+-              aria-hidden
+-              className="pointer-events-none absolute right-10 top-1/2 hidden -translate-y-1/2 -rotate-[8deg] flex-col gap-2.5 sm:flex"
+-            >
+-              <div className="h-4 w-44 rounded-md bg-secondary" />
+-              <div className="ml-6 h-4 w-44 rounded-md bg-primary" />
+-              <div className="h-4 w-44 rounded-md bg-secondary" />
+-            </div>
+-          </section>
+-
+-          <div className="flex flex-wrap items-center gap-4">
+-            <label className="flex h-10 min-w-56 flex-1 items-center gap-2 rounded-lg border border-border bg-card px-3 text-muted-foreground focus-within:border-primary/50">
+-              <Search className="size-4 shrink-0" />
+-              <input
+-                ref={searchRef}
+-                value={query}
+-                onChange={(event) => setQuery(event.target.value)}
+-                placeholder="Search your snippets..."
+-                aria-label="Search your snippets"
+-                className="min-w-0 flex-1 bg-transparent text-sm text-foreground outline-none placeholder:text-muted-foreground"
+-              />
+-              <kbd className="hidden rounded border border-border px-1.5 py-0.5 font-mono text-[10px] sm:block">
+-                ⌘K
+-              </kbd>
+-            </label>
+-
+-            <select
+-              value={language}
+-              onChange={(event) => setLanguage(event.target.value)}
+-              aria-label="Filter by language"
+-              className={selectClass}
+-            >
+-              <option value="all">All languages</option>
+-              {languages.map((value) => (
+-                <option key={value} value={value}>
+-                  {languageLabel(value)}
+-                </option>
+-              ))}
+-            </select>
+-
+-            <select
+-              value={sort}
+-              onChange={(event) => setSort(event.target.value as Sort)}
+-              aria-label="Sort snippets"
+-              className={selectClass}
++    <AppFrame
++      active="library"
++      workspaceName={workspaceName}
++      collections={collections}
++      activeCollection={collection}
++      onSelectCollection={(name) => {
++        setCollection(name);
++        setTab("all");
++      }}
++      breadcrumb="Workspace / Library"
++    >
++
++      <div className="flex flex-wrap items-end justify-between gap-4">
++        <div>
++          <h1 className="text-3xl font-bold tracking-tight">
++            Your snippets, all in one place.
++          </h1>
++          <p className="mt-1.5 text-xs text-muted-foreground">
++            Save what works. Find it faster. Keep building.
++          </p>
++        </div>
++        <Link href="/dashboard/new" className={buttonVariants({ size: "lg" })}>
++          New snippet
++        </Link>
++      </div>
++
++      <section className="relative overflow-hidden rounded-xl border border-border bg-card px-6 py-7">
++        <p className="text-[10px] font-medium uppercase tracking-[0.14em] text-muted-foreground/70">
++          Your next idea starts here
++        </p>
++        <h2 className="mt-3 text-2xl font-bold tracking-tight">
++          Less searching. More shipping.
++        </h2>
++        <p className="mt-2 text-xs text-muted-foreground">
++          Turn a quick experiment into something worth keeping.
++        </p>
++        <Link
++          href="/playground"
++          className={`${buttonVariants({ size: "lg" })} mt-4`}
++        >
++          Explore the playground
++        </Link>
++
++        <div
++          aria-hidden
++          className="pointer-events-none absolute right-10 top-1/2 hidden -translate-y-1/2 -rotate-[8deg] flex-col gap-2.5 sm:flex"
++        >
++          <div className="h-4 w-44 rounded-md bg-secondary" />
++          <div className="ml-6 h-4 w-44 rounded-md bg-primary" />
++          <div className="h-4 w-44 rounded-md bg-secondary" />
++        </div>
++      </section>
++
++      <div className="flex flex-wrap items-center gap-4">
++        <label className="flex h-10 min-w-56 flex-1 items-center gap-2 rounded-lg border border-border bg-card px-3 text-muted-foreground focus-within:border-primary/50">
++          <Search className="size-4 shrink-0" />
++          <input
++            ref={searchRef}
++            value={query}
++            onChange={(event) => setQuery(event.target.value)}
++            placeholder="Search your snippets..."
++            aria-label="Search your snippets"
++            className="min-w-0 flex-1 bg-transparent text-sm text-foreground outline-none placeholder:text-muted-foreground"
++          />
++          <kbd className="hidden rounded border border-border px-1.5 py-0.5 font-mono text-[10px] sm:block">
++            ⌘K
++          </kbd>
++        </label>
++
++        <select
++          value={language}
++          onChange={(event) => setLanguage(event.target.value)}
++          aria-label="Filter by language"
++          className={selectClass}
++        >
++          <option value="all">All languages</option>
++          {languages.map((value) => (
++            <option key={value} value={value}>
++              {languageLabel(value)}
++            </option>
++          ))}
++        </select>
++
++        <select
++          value={sort}
++          onChange={(event) => setSort(event.target.value as Sort)}
++          aria-label="Sort snippets"
++          className={selectClass}
++        >
++          <option value="updated">Last updated</option>
++          <option value="title">Title A–Z</option>
++        </select>
++      </div>
++
++      <div className="flex items-center gap-5 text-xs" role="tablist">
++        {tabs.map((item) => {
++          const active = tab === item.id;
++          return (
++            <button
++              key={item.id}
++              type="button"
++              role="tab"
++              aria-selected={active}
++              onClick={() => setTab(item.id)}
++              className={`transition-colors ${
++                active
++                  ? "font-semibold text-primary"
++                  : "text-muted-foreground hover:text-foreground"
++              }`}
+             >
+-              <option value="updated">Last updated</option>
+-              <option value="title">Title A–Z</option>
+-            </select>
+-          </div>
+-
+-          <div className="flex items-center gap-5 text-xs" role="tablist">
+-            {tabs.map((item) => {
+-              const active = tab === item.id;
+-              return (
+-                <button
+-                  key={item.id}
+-                  type="button"
+-                  role="tab"
+-                  aria-selected={active}
+-                  onClick={() => setTab(item.id)}
+-                  className={`transition-colors ${
+-                    active
+-                      ? "font-semibold text-primary"
+-                      : "text-muted-foreground hover:text-foreground"
+-                  }`}
+-                >
+-                  {item.label}{" "}
+-                  <span className={active ? "text-primary" : "text-muted-foreground"}>
+-                    {item.count}
+-                  </span>
+-                </button>
+-              );
+-            })}
+-            {collection && (
+-              <button
+-                type="button"
+-                onClick={() => setCollection(null)}
+-                className="ml-auto rounded-full border border-border px-2.5 py-0.5 text-muted-foreground hover:text-foreground"
+-              >
+-                #{collection} ✕
+-              </button>
+-            )}
+-          </div>
+-
+-          {snippets.length === 0 ? (
+-            <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-border p-12 text-center">
+-              <h3 className="text-lg font-semibold">No snippets yet</h3>
+-              <p className="mb-4 mt-1 text-sm text-muted-foreground">
+-                Save your first snippet and it will show up here.
+-              </p>
+-              <Link href="/dashboard/new" className={buttonVariants({ size: "lg" })}>
+-                New snippet
+-              </Link>
+-            </div>
+-          ) : visible.length === 0 ? (
+-            <div className="rounded-xl border border-dashed border-border p-10 text-center text-sm text-muted-foreground">
+-              No snippets match your filters.
+-            </div>
+-          ) : (
+-            <div className="grid grid-cols-1 gap-4 lg:grid-cols-2 xl:grid-cols-3">
+-              {visible.map((snippet) => (
+-                <SnippetTile key={snippet.id} snippet={snippet} />
+-              ))}
+-            </div>
+-          )}
+-
+-          <p className="pb-4 text-[11px] text-muted-foreground">
+-            Showing {visible.length} of {snippets.length} snippets
++              {item.label}{" "}
++              <span className={active ? "text-primary" : "text-muted-foreground"}>
++                {item.count}
++              </span>
++            </button>
++          );
++        })}
++        {collection && (
++          <button
++            type="button"
++            onClick={() => setCollection(null)}
++            className="ml-auto rounded-full border border-border px-2.5 py-0.5 text-muted-foreground hover:text-foreground"
++          >
++            #{collection} ✕
++          </button>
++        )}
++      </div>
++
++      {snippets.length === 0 ? (
++        <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-border p-12 text-center">
++          <h3 className="text-lg font-semibold">No snippets yet</h3>
++          <p className="mb-4 mt-1 text-sm text-muted-foreground">
++            Save your first snippet and it will show up here.
+           </p>
++          <Link href="/dashboard/new" className={buttonVariants({ size: "lg" })}>
++            New snippet
++          </Link>
++        </div>
++      ) : visible.length === 0 ? (
++        <div className="rounded-xl border border-dashed border-border p-10 text-center text-sm text-muted-foreground">
++          No snippets match your filters.
+         </div>
+-      </main>
+-    </div>
++      ) : (
++        <div className="grid grid-cols-1 gap-4 lg:grid-cols-2 xl:grid-cols-3">
++          {visible.map((snippet) => (
++            <SnippetTile key={snippet.id} snippet={snippet} />
++          ))}
++        </div>
++      )}
++
++      <p className="pb-4 text-[11px] text-muted-foreground">
++        Showing {visible.length} of {snippets.length} snippets
++      </p>
++    </AppFrame>
+   );
+ }
+diff --git a/components/playground/CodeEditor.tsx b/components/playground/CodeEditor.tsx
+index c0ebd98..d6d9123 100644
+--- a/components/playground/CodeEditor.tsx
++++ b/components/playground/CodeEditor.tsx
+@@ -2,13 +2,24 @@
+ 
+ import { useLayoutEffect, useRef } from "react";
+ import Prism from "prismjs";
+-
+-import type { Grammar } from "@/components/playground/runner";
++import "prismjs/components/prism-typescript";
++import "prismjs/components/prism-python";
++import "prismjs/components/prism-sql";
++import "prismjs/components/prism-json";
++import "prismjs/components/prism-go";
++import "prismjs/components/prism-rust";
++import "prismjs/components/prism-markdown";
+ 
+ interface CodeEditorProps {
+   value: string;
+-  grammar: Grammar;
++  /** Any Prism grammar name ("javascript", "markup", "python", ...). Unknown names render unhighlighted. */
++  grammar: string;
+   onChange: (value: string) => void;
++  placeholder?: string;
++  /** Lets an external <label htmlFor> point at the textarea. */
++  id?: string;
++  invalid?: boolean;
++  describedBy?: string;
+ }
+ 
+ function escapeHtml(value: string): string {
+@@ -19,6 +30,7 @@ function escapeHtml(value: string): string {
+ }
+ 
+ const TAB = "  ";
++const MODIFIER_KEYS = ["Shift", "Control", "Alt", "Meta"];
+ 
+ // The textarea and the highlighted <pre> must share identical metrics.
+ const textMetrics =
+@@ -27,12 +39,24 @@ const textMetrics =
+ /**
+  * A lightweight editor: a transparent <textarea> typed into, layered over a
+  * syntax-highlighted <pre> that mirrors its content and scroll position.
++ *
++ * Tab indents. So keyboard users aren't trapped, Shift+Tab, or Esc followed by
++ * Tab, moves focus out instead.
+  */
+-export function CodeEditor({ value, grammar, onChange }: CodeEditorProps) {
++export function CodeEditor({
++  value,
++  grammar,
++  onChange,
++  placeholder,
++  id,
++  invalid,
++  describedBy,
++}: CodeEditorProps) {
+   const textareaRef = useRef<HTMLTextAreaElement>(null);
+   const preRef = useRef<HTMLPreElement>(null);
+   const gutterRef = useRef<HTMLDivElement>(null);
+   const pendingCaret = useRef<number | null>(null);
++  const escapePressed = useRef(false);
+ 
+   // Restore the caret after a programmatic edit (Tab) re-renders the textarea.
+   useLayoutEffect(() => {
+@@ -62,10 +86,22 @@ export function CodeEditor({ value, grammar, onChange }: CodeEditorProps) {
+   }
+ 
+   function handleKeyDown(event: React.KeyboardEvent<HTMLTextAreaElement>) {
+-    if (event.key !== "Tab") return;
++    if (event.key === "Escape") {
++      escapePressed.current = true;
++      return;
++    }
++    if (MODIFIER_KEYS.includes(event.key)) return;
++    if (event.key !== "Tab") {
++      escapePressed.current = false;
++      return;
++    }
++    if (event.shiftKey || escapePressed.current) {
++      escapePressed.current = false;
++      return; // let the browser move focus
++    }
++
+     event.preventDefault();
+-    const textarea = event.currentTarget;
+-    const { selectionStart, selectionEnd } = textarea;
++    const { selectionStart, selectionEnd } = event.currentTarget;
+     pendingCaret.current = selectionStart + TAB.length;
+     onChange(
+       value.slice(0, selectionStart) + TAB + value.slice(selectionEnd),
+@@ -92,17 +128,31 @@ export function CodeEditor({ value, grammar, onChange }: CodeEditorProps) {
+         >
+           <code dangerouslySetInnerHTML={{ __html: `${highlighted}\n` }} />
+         </pre>
++        {value === "" && placeholder && (
++          <span
++            aria-hidden
++            className={`pointer-events-none absolute inset-0 overflow-hidden text-muted-foreground/60 ${textMetrics}`}
++          >
++            {placeholder}
++          </span>
++        )}
+         <textarea
+           ref={textareaRef}
++          id={id}
+           value={value}
+           onChange={(event) => onChange(event.target.value)}
+           onKeyDown={handleKeyDown}
++          onBlur={() => {
++            escapePressed.current = false;
++          }}
+           onScroll={syncScroll}
+           spellCheck={false}
+           autoCapitalize="off"
+           autoCorrect="off"
+           wrap="off"
+-          aria-label="Code editor"
++          aria-label={id ? undefined : "Code editor"}
++          aria-invalid={invalid || undefined}
++          aria-describedby={describedBy}
+           className={`absolute inset-0 size-full resize-none overflow-auto bg-transparent text-transparent caret-primary outline-none selection:bg-primary/25 ${textMetrics}`}
+         />
+       </div>
+diff --git a/components/playground/PlaygroundShell.tsx b/components/playground/PlaygroundShell.tsx
+index e861d2e..59ea713 100644
+--- a/components/playground/PlaygroundShell.tsx
++++ b/components/playground/PlaygroundShell.tsx
+@@ -5,10 +5,8 @@ import { useRouter } from "next/navigation";
+ 
+ import { createSnippet } from "@/app/actions/snippet";
+ import { Button } from "@/components/ui/button";
+-import {
+-  DashboardSidebar,
+-  type Collection,
+-} from "@/components/dashboard/DashboardSidebar";
++import { AppFrame } from "@/components/dashboard/AppFrame";
++import type { Collection } from "@/components/dashboard/DashboardSidebar";
+ import { CodeEditor } from "@/components/playground/CodeEditor";
+ import {
+   LANGUAGES,
+@@ -172,7 +170,6 @@ export function PlaygroundShell({
+     setSaveState("saving");
+     setSaveError(null);
+     const result = await createSnippet({
+-      userId,
+       title: title.trim() || "Untitled playground",
+       description: "",
+       code: toSnippetCode(language, files),
+@@ -189,160 +186,152 @@ export function PlaygroundShell({
+   }
+ 
+   return (
+-    <div className="fixed inset-0 z-50 flex bg-background text-foreground">
+-      <DashboardSidebar
+-        active="playground"
+-        workspaceName={workspaceName}
+-        collections={collections}
+-      />
++    <AppFrame
++      active="playground"
++      workspaceName={workspaceName}
++      collections={collections}
++      breadcrumb="Workspace / Playground"
++      contentClassName="max-w-6xl gap-5"
++    >
+ 
+-      <main className="min-w-0 flex-1 overflow-y-auto">
+-        <div className="mx-auto flex max-w-6xl flex-col gap-5 px-6 py-5 md:px-8">
+-          <div className="flex items-center justify-between text-xs text-muted-foreground">
+-            <span>Workspace / Playground</span>
+-            <span>Personal workspace</span>
+-          </div>
++      <div className="flex flex-wrap items-end justify-between gap-4">
++        <div>
++          <h1 className="text-3xl font-bold tracking-tight">
++            A little space for big ideas.
++          </h1>
++          <p className="mt-1.5 text-xs text-muted-foreground">
++            Experiment, break things, and save the good parts.
++          </p>
++        </div>
++        <div className="flex flex-col items-end gap-1">
++          <Button size="lg" onClick={handleSave} disabled={saveState === "saving"}>
++            {saveState === "saving" ? "Saving..." : "Save snippet"}
++          </Button>
++          {saveError && <p className="text-xs text-destructive">{saveError}</p>}
++        </div>
++      </div>
+ 
+-          <div className="flex flex-wrap items-end justify-between gap-4">
+-            <div>
+-              <h1 className="text-3xl font-bold tracking-tight">
+-                A little space for big ideas.
+-              </h1>
+-              <p className="mt-1.5 text-xs text-muted-foreground">
+-                Experiment, break things, and save the good parts.
+-              </p>
+-            </div>
+-            <div className="flex flex-col items-end gap-1">
+-              <Button size="lg" onClick={handleSave} disabled={saveState === "saving"}>
+-                {saveState === "saving" ? "Saving..." : "Save snippet"}
+-              </Button>
+-              {saveError && <p className="text-xs text-destructive">{saveError}</p>}
+-            </div>
+-          </div>
++      {/* Toolbar */}
++      <div className="flex flex-wrap items-center gap-3 rounded-xl border border-border bg-card px-4 py-3">
++        <input
++          value={title}
++          onChange={(event) => setTitle(event.target.value)}
++          placeholder="Untitled playground"
++          aria-label="Snippet title"
++          className="min-w-0 flex-1 bg-transparent text-sm font-semibold outline-none placeholder:text-foreground"
++        />
++        <select
++          value={language}
++          onChange={(event) => changeLanguage(event.target.value as PlaygroundLanguage)}
++          aria-label="Language"
++          className="cursor-pointer appearance-none bg-transparent text-xs text-muted-foreground outline-none hover:text-foreground"
++        >
++          {Object.values(LANGUAGES).map((item) => (
++            <option key={item.id} value={item.id}>
++              {item.label}
++            </option>
++          ))}
++        </select>
++        <Button size="lg" onClick={execute} title="Run (Ctrl/⌘ + Enter)">
++          {config.runLabel}
++        </Button>
++      </div>
+ 
+-          {/* Toolbar */}
+-          <div className="flex flex-wrap items-center gap-3 rounded-xl border border-border bg-card px-4 py-3">
+-            <input
+-              value={title}
+-              onChange={(event) => setTitle(event.target.value)}
+-              placeholder="Untitled playground"
+-              aria-label="Snippet title"
+-              className="min-w-0 flex-1 bg-transparent text-sm font-semibold outline-none placeholder:text-foreground"
++      {/* Editor + right panel */}
++      <div className="grid gap-4 lg:grid-cols-2">
++        <section className="flex h-[26rem] flex-col overflow-hidden rounded-xl border border-border bg-card">
++          <div
++            role="tablist"
++            className="flex items-center gap-5 border-b border-border px-4 py-2.5 text-xs"
++          >
++            {files.map((file, index) => (
++              <button
++                key={file.name}
++                type="button"
++                role="tab"
++                aria-selected={index === activeIndex}
++                onClick={() => setActiveIndex(index)}
++                className={`transition-colors ${
++                  index === activeIndex
++                    ? "font-semibold text-primary"
++                    : "text-muted-foreground hover:text-foreground"
++                }`}
++              >
++                {file.name}
++              </button>
++            ))}
++          </div>
++          <div className="min-h-0 flex-1">
++            <CodeEditor
++              key={`${language}-${activeFile.name}`}
++              value={activeFile.content}
++              grammar={activeFile.grammar}
++              onChange={updateActiveFile}
+             />
+-            <select
+-              value={language}
+-              onChange={(event) => changeLanguage(event.target.value as PlaygroundLanguage)}
+-              aria-label="Language"
+-              className="cursor-pointer appearance-none bg-transparent text-xs text-muted-foreground outline-none hover:text-foreground"
+-            >
+-              {Object.values(LANGUAGES).map((item) => (
+-                <option key={item.id} value={item.id}>
+-                  {item.label}
+-                </option>
+-              ))}
+-            </select>
+-            <Button size="lg" onClick={execute} title="Run (Ctrl/⌘ + Enter)">
+-              {config.runLabel}
+-            </Button>
+           </div>
++        </section>
+ 
+-          {/* Editor + right panel */}
+-          <div className="grid gap-4 lg:grid-cols-2">
+-            <section className="flex h-[26rem] flex-col overflow-hidden rounded-xl border border-border bg-card">
+-              <div
+-                role="tablist"
+-                className="flex items-center gap-5 border-b border-border px-4 py-2.5 text-xs"
+-              >
+-                {files.map((file, index) => (
+-                  <button
+-                    key={file.name}
+-                    type="button"
+-                    role="tab"
+-                    aria-selected={index === activeIndex}
+-                    onClick={() => setActiveIndex(index)}
+-                    className={`transition-colors ${
+-                      index === activeIndex
+-                        ? "font-semibold text-primary"
+-                        : "text-muted-foreground hover:text-foreground"
+-                    }`}
+-                  >
+-                    {file.name}
+-                  </button>
+-                ))}
+-              </div>
+-              <div className="min-h-0 flex-1">
+-                <CodeEditor
+-                  key={`${language}-${activeFile.name}`}
+-                  value={activeFile.content}
+-                  grammar={activeFile.grammar}
+-                  onChange={updateActiveFile}
+-                />
+-              </div>
+-            </section>
+-
+-            <section className="flex h-[26rem] flex-col overflow-hidden rounded-xl border border-border bg-card">
+-              <div className="flex items-center justify-between border-b border-border px-4 py-2.5 text-xs">
+-                <span className="font-semibold">
+-                  {runConfig.runner === "preview" ? "Preview" : "Output"}
+-                </span>
+-                <span className="text-muted-foreground">
+-                  {runConfig.runner === "preview" ? "sandboxed" : "console"}
+-                </span>
+-              </div>
++        <section className="flex h-[26rem] flex-col overflow-hidden rounded-xl border border-border bg-card">
++          <div className="flex items-center justify-between border-b border-border px-4 py-2.5 text-xs">
++            <span className="font-semibold">
++              {runConfig.runner === "preview" ? "Preview" : "Output"}
++            </span>
++            <span className="text-muted-foreground">
++              {runConfig.runner === "preview" ? "sandboxed" : "console"}
++            </span>
++          </div>
+ 
+-              {/* The iframe stays mounted for both runners; the console runner just hides it. */}
+-              <iframe
+-                key={run.id}
+-                ref={iframeRef}
+-                title="Playground preview"
+-                sandbox="allow-scripts"
+-                srcDoc={srcDoc}
+-                className={`min-h-0 flex-1 border-0 bg-white ${
+-                  runConfig.runner === "preview" ? "" : "hidden"
+-                }`}
++          {/* The iframe stays mounted for both runners; the console runner just hides it. */}
++          <iframe
++            key={run.id}
++            ref={iframeRef}
++            title="Playground preview"
++            sandbox="allow-scripts"
++            srcDoc={srcDoc}
++            className={`min-h-0 flex-1 border-0 bg-white ${
++              runConfig.runner === "preview" ? "" : "hidden"
++            }`}
++          />
++          {runConfig.runner === "console" && (
++            <div className="min-h-0 flex-1 overflow-y-auto p-4">
++              <LogList
++                logs={logs}
++                empty="Nothing logged yet. Hit Run to see your output."
+               />
+-              {runConfig.runner === "console" && (
+-                <div className="min-h-0 flex-1 overflow-y-auto p-4">
+-                  <LogList
+-                    logs={logs}
+-                    empty="Nothing logged yet. Hit Run to see your output."
+-                  />
+-                </div>
+-              )}
+-
+-              {runConfig.runner === "preview" && (
+-                <p className="border-t border-border px-4 py-2 text-[11px] text-muted-foreground">
+-                  Runs in a sandboxed frame · Ctrl/⌘ + Enter to re-run
+-                </p>
+-              )}
+-            </section>
+-          </div>
++            </div>
++          )}
+ 
+-          {/* Console strip (UI languages only; JS shows output in the right panel) */}
+           {runConfig.runner === "preview" && (
+-            <section className="rounded-xl border border-border bg-card">
+-              <div className="flex items-center justify-between px-4 py-3 text-xs">
+-                <span className="font-semibold">Console / Output</span>
+-                {logs.length > 0 && (
+-                  <button
+-                    type="button"
+-                    onClick={() => setLogs([])}
+-                    className="text-muted-foreground hover:text-foreground"
+-                  >
+-                    Clear
+-                  </button>
+-                )}
+-              </div>
+-              <div className="max-h-44 overflow-y-auto px-4 pb-4">
+-                <LogList
+-                  logs={logs}
+-                  empty="Ready for your next experiment. console.log output and errors appear here."
+-                />
+-              </div>
+-            </section>
++            <p className="border-t border-border px-4 py-2 text-[11px] text-muted-foreground">
++              Runs in a sandboxed frame · Ctrl/⌘ + Enter to re-run
++            </p>
+           )}
+-        </div>
+-      </main>
+-    </div>
++        </section>
++      </div>
++
++      {/* Console strip (UI languages only; JS shows output in the right panel) */}
++      {runConfig.runner === "preview" && (
++        <section className="rounded-xl border border-border bg-card">
++          <div className="flex items-center justify-between px-4 py-3 text-xs">
++            <span className="font-semibold">Console / Output</span>
++            {logs.length > 0 && (
++              <button
++                type="button"
++                onClick={() => setLogs([])}
++                className="text-muted-foreground hover:text-foreground"
++              >
++                Clear
++              </button>
++            )}
++          </div>
++          <div className="max-h-44 overflow-y-auto px-4 pb-4">
++            <LogList
++              logs={logs}
++              empty="Ready for your next experiment. console.log output and errors appear here."
++            />
++          </div>
++        </section>
++      )}
++    </AppFrame>
+   );
+ }
+diff --git a/lib/workspace.ts b/lib/workspace.ts
+new file mode 100644
+index 0000000..4328e14
+--- /dev/null
++++ b/lib/workspace.ts
+@@ -0,0 +1,22 @@
++import "server-only";
++
++import { auth, currentUser } from "@clerk/nextjs/server";
++
++import { getUserSnippets } from "@/app/actions/snippet";
++import { getCollections } from "@/components/dashboard/collections";
++
++/** Everything the workspace pages (dashboard, playground, new snippet) need from the server. */
++export async function getWorkspaceContext() {
++  const [{ userId }, user, snippets] = await Promise.all([
++    auth(),
++    currentUser(),
++    getUserSnippets(),
++  ]);
++
++  return {
++    userId,
++    snippets,
++    workspaceName: user?.firstName ? `${user.firstName}'s workspace` : "My workspace",
++    collections: getCollections(snippets.map((snippet) => snippet.tags)),
++  };
++}
