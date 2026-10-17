@@ -5,10 +5,8 @@ import Link from "next/link";
 import { Search } from "lucide-react";
 
 import { buttonVariants } from "@/components/ui/button";
-import {
-  DashboardSidebar,
-  type Collection,
-} from "@/components/dashboard/DashboardSidebar";
+import { DashboardSidebar } from "@/components/dashboard/DashboardSidebar";
+import { getCollections } from "@/components/dashboard/collections";
 import { SnippetTile } from "@/components/dashboard/SnippetTile";
 import { languageLabel, type SnippetView } from "@/components/dashboard/types";
 
@@ -43,20 +41,10 @@ export function DashboardShell({ snippets, workspaceName }: DashboardShellProps)
     return () => window.removeEventListener("keydown", onKeyDown);
   }, []);
 
-  // Collections are the user's most-used tags.
-  const collections: Collection[] = useMemo(() => {
-    const counts = new Map<string, number>();
-    for (const snippet of snippets) {
-      for (const raw of snippet.tags) {
-        const tag = raw.trim().toLowerCase();
-        if (tag) counts.set(tag, (counts.get(tag) ?? 0) + 1);
-      }
-    }
-    return [...counts.entries()]
-      .map(([name, count]) => ({ name, count }))
-      .sort((a, b) => b.count - a.count || a.name.localeCompare(b.name))
-      .slice(0, 6);
-  }, [snippets]);
+  const collections = useMemo(
+    () => getCollections(snippets.map((snippet) => snippet.tags)),
+    [snippets],
+  );
 
   const languages = useMemo(
     () => [...new Set(snippets.map((snippet) => snippet.language))].sort(),
@@ -102,6 +90,7 @@ export function DashboardShell({ snippets, workspaceName }: DashboardShellProps)
   return (
     <div className="fixed inset-0 z-50 flex bg-background text-foreground">
       <DashboardSidebar
+        active="library"
         workspaceName={workspaceName}
         collections={collections}
         activeCollection={collection}
@@ -109,7 +98,6 @@ export function DashboardShell({ snippets, workspaceName }: DashboardShellProps)
           setCollection(name);
           setTab("all");
         }}
-        allActive={collection === null}
       />
 
       <main className="min-w-0 flex-1 overflow-y-auto">

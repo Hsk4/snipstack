@@ -1,18 +1,38 @@
-import { CodePlayground } from "@/components/CodePlayground";
+import { Suspense } from "react";
+import { auth, currentUser } from "@clerk/nextjs/server";
+
+import { getUserSnippets } from "@/app/actions/snippet";
+import { getCollections } from "@/components/dashboard/collections";
+import { PlaygroundShell } from "@/components/playground/PlaygroundShell";
+
+async function PlaygroundData() {
+  const [{ userId }, user, snippets] = await Promise.all([
+    auth(),
+    currentUser(),
+    getUserSnippets(),
+  ]);
+
+  return (
+    <PlaygroundShell
+      userId={userId}
+      workspaceName={user?.firstName ? `${user.firstName}'s workspace` : "My workspace"}
+      collections={getCollections(snippets.map((snippet) => snippet.tags))}
+    />
+  );
+}
 
 export default function PlaygroundPage() {
-    return (
-        <div className="container mx-auto py-8 px-4 max-w-7xl space-y-6">
-            <div className="flex flex-col gap-2">
-                <h1 className="text-3xl font-extrabold tracking-tight text-foreground flex items-center gap-2">
-                    Interactive Code Playground
-                </h1>
-                <p className="text-sm text-muted-foreground">
-                    Execute client-side JavaScript, inspect JSON schemas, or render live HTML/CSS previews before saving to SnippetVault.
-                </p>
-            </div>
-
-            <CodePlayground />
-        </div>
-    );
+  return (
+    <div className="dashboard-theme">
+      <Suspense
+        fallback={
+          <div className="fixed inset-0 z-50 grid place-items-center bg-background text-sm text-muted-foreground">
+            Loading the playground...
+          </div>
+        }
+      >
+        <PlaygroundData />
+      </Suspense>
+    </div>
+  );
 }
